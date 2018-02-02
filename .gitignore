@@ -1,4 +1,4 @@
-/.idea
-/out
+.idea/
+out
 build/
 *.class
