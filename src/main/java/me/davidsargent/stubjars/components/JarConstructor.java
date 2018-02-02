@@ -14,10 +14,9 @@
 package me.davidsargent.stubjars.components;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
 import java.util.Arrays;
 
 public class JarConstructor<T> extends JarModifers {
@@ -48,6 +47,49 @@ public class JarConstructor<T> extends JarModifers {
                 .toArray(String[]::new);
     }
 
+    @Nullable
+    public static Type typeArgumentForClass(@NotNull TypeVariable typeVariable, @NotNull Class<?> klazz) {
+        if (klazz.getSuperclass() == null) return null;
+        Type superClassType = klazz.getGenericSuperclass();
+        Class<?> superClass = klazz.getSuperclass();
+        if (!(superClassType instanceof ParameterizedType))  return null;
+        ParameterizedType pSuperClassType = (ParameterizedType) superClassType;
+        Type[] actualTypeArguments = pSuperClassType.getActualTypeArguments();
+        Type[] actualTypeParameters = superClass.getTypeParameters();
+        for (int i = 0; i < actualTypeArguments.length; i++) {
+            if ((actualTypeParameters[i] instanceof TypeVariable)) {
+                TypeVariable testType = (TypeVariable) actualTypeParameters[i];
+                if (!testType.getName().equals(typeVariable.getName())) continue;
+
+                return actualTypeArguments[i];
+            }
+
+            if (handleParameterizedType(typeVariable, actualTypeParameters[i]))
+                return actualTypeArguments[i];
+        }
+
+        return null;
+    }
+
+    private static boolean handleParameterizedType(@NotNull TypeVariable typeVariable, Type actualTypeParameter) {
+        if ((actualTypeParameter) instanceof ParameterizedType) {
+            ParameterizedType testType = (ParameterizedType) actualTypeParameter;
+            for (Type testChildType : testType.getActualTypeArguments()) {
+                if (testChildType instanceof TypeVariable) {
+                    TypeVariable tTestChildType = (TypeVariable) testChildType;
+                    if (tTestChildType.getName().equals(typeVariable.getName()))
+                        return true;
+                }
+
+                if (testChildType instanceof ParameterizedType) {
+                    return handleParameterizedType(typeVariable, testChildType);
+                }
+            }
+        }
+
+        return false;
+    }
+
     @NotNull
     public String name() {
         return constructor.getDeclaringClass().getSimpleName();
@@ -75,9 +117,11 @@ public class JarConstructor<T> extends JarModifers {
             Constructor<?> declaredConstructor;
             if (declaringClass == null || Modifier.isStatic(klazz.getModifiers()))
                 declaredConstructor = klazz.getDeclaredConstructor();
-            else {
-                declaredConstructor = klazz.getDeclaredConstructor(declaringClass);
-            }
+//            else {
+//                declaredConstructor = klazz.getDeclaredConstructor(declaringClass);
+//            }
+            else
+                return false;
 
             return !Modifier.isPrivate(declaredConstructor.getModifiers());
         } catch (NoSuchMethodException e) {

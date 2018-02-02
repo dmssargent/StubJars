@@ -21,6 +21,8 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.lang.reflect.*;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -157,10 +159,10 @@ public class JavaClassWriter extends Writer {
         StringBuilder compiledCotr = new StringBuilder();
         for (JarConstructor<?> cotr : cotrs) {
             // If any of these conditions are meet, we shouldn't need to declare a constructor
-            if (cotr.isDefaultConstructor() &&
-                    (cotr.getConstructor().getDeclaringClass().getSuperclass() == null ||
-                            JarConstructor.hasDefaultConstructor(cotr.getConstructor().getDeclaringClass().getSuperclass())))
-                continue;
+//            if (cotr.isDefaultConstructor() &&
+//                    (cotr.getConstructor().getDeclaringClass().getSuperclass() == null ||
+//                            JarConstructor.hasDefaultConstructor(cotr.getConstructor().getDeclaringClass().getSuperclass())))
+//                continue;
 
             // Figure out correct method signature
             final String security;
@@ -182,11 +184,30 @@ public class JavaClassWriter extends Writer {
                 JarConstructor<?>[] declaredConstructors;
                 declaredConstructors = (JarConstructor<?>[]) JarClass.forClass(klazzSuperClass).constructors().toArray(new JarConstructor<?>[0]);
                 if (declaredConstructors.length > 0) {
+                    Type[] genericParameterTypes = declaredConstructors[0].getConstructor().getGenericParameterTypes();
+                    if (genericParameterTypes[0] instanceof Class && klazzSuperClass.equals(genericParameterTypes[0])) {
+                        List<Type> types = new LinkedList<>(Arrays.asList(genericParameterTypes));
+                        types.remove(0);
+                        genericParameterTypes =  types.toArray(new Type[types.size()]);
+                    }
+
                     stubMethod = INDENT + "super(" + Utils.arrayToCommaSeparatedList(
-                            declaredConstructors[0].getConstructor().getGenericParameterTypes(),
-                            paramType ->
-                                    "(" + JarType.toString(paramType)  + ") " + JavaClassWriter.defaultValueForType(paramType)
-                    ) + ");";
+                            genericParameterTypes,
+                            paramType -> {
+                                final Type correctType;
+                                if (paramType instanceof TypeVariable) {
+                                    Type testCorrectType = JarConstructor.typeArgumentForClass((TypeVariable) paramType, klazz.getKlazz());
+                                    if (testCorrectType == null) {
+                                        correctType = paramType;
+                                    } else {
+                                        correctType = testCorrectType;
+                                    }
+                                } else {
+                                    correctType = paramType;
+                                }
+                                return "(" + JarType.toString(correctType)  + ") " + JavaClassWriter.defaultValueForType(correctType);
+                            }
+                            ) + ");";
                 } else {
                     throw new UnsupportedOperationException("Cannot infer super cotr to write for " + klazz.getKlazz().getName());
                 }

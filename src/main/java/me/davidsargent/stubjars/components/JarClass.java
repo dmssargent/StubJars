@@ -76,7 +76,7 @@ public class JarClass<T> extends JarModifers {
 
     public boolean isEnum() {
         Class<?> extendClazz = extendsClass();
-        return extendClazz != null && extendClazz.equals(Enum.class);
+        return klazz.isEnum();
     }
 
     @NotNull
