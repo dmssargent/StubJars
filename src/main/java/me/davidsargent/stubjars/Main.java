@@ -27,6 +27,19 @@ class Main {
                 continue;
             }
 
+//            if (argument.contains("*")) {
+//                String baseFolder = argument.startsWith("*") ? new File(".").getPath() : argument.substring(0, argument.lastIndexOf(File.separatorChar) + 1);
+//                String regexToCheck = argument.substring(argument.lastIndexOf("/" + 1, argument.indexOf('*')));
+//                regexToCheck = argument.substring(0, regexToCheck.indexOf("*") + 1);
+//                regexToCheck = regexToCheck.replace("*", "\\.*");
+//                List<String> matches = new ArrayList<>();
+//                for (String possibleResult : Objects.requireNonNull(new File(baseFolder).list())) {
+//                    if (possibleResult.matches(regexToCheck)) {
+//                        matches.add(new File(Path));
+//                    }
+//                }
+//            }
+
             File e = new File(argument);
             if (!e.exists()) System.err.println(String.format("The file \"%s\" does not exist!", argument));
             if (e.isDirectory()) System.err.println(String.format("The file \"%s\" is a folder!", argument));
@@ -34,7 +47,6 @@ class Main {
             files.add(e);
         }
         builder.addJars(files.toArray(new File[] {}));
-        System.out.print("Ready? ");
         System.out.print("Loading...");
         StubJars build = builder.build();
         System.out.println("done!");
@@ -50,6 +62,18 @@ class Main {
     }
 
     private static void parseArg(StubJars.Builder builder, String arg) {
+        if (arg.startsWith("-cp=")) {
+            String path = arg.split("=")[1];
+            final String[] classpathJars;
+            if (path.contains(File.pathSeparator)) {
+                classpathJars = path.split(File.pathSeparator);
+            } else {
+                classpathJars = new String[]{path};
+            }
 
+            for (String jarPath : classpathJars) {
+                builder.addClasspathJar(new File(jarPath));
+            }
+        }
     }
 }

@@ -13,5 +13,66 @@
 
 package me.davidsargent.stubjars.components;
 
-class JarField {
+import me.davidsargent.stubjars.components.writer.JavaClassWriter;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Type;
+
+import static me.davidsargent.stubjars.components.writer.Constants.EMPTY_STRING;
+
+
+public class JarField extends JarModifers implements CompileableString {
+    private final JarClass jarClass;
+    private final Field field;
+
+    public JarField(JarClass<?> clazz, Field method) {
+        this.jarClass = clazz;
+        this.field = method;
+    }
+
+    @Override
+    protected int getModifiers() {
+        return field.getModifiers();
+    }
+
+    public String name() {
+        return field.getName();
+    }
+
+    public Class<?> returnType() {
+        return field.getType();
+    }
+
+    public Type genericReturnType() {
+        return field.getGenericType();
+    }
+
+    @Override
+    public String compileToString() {
+        // Figure method signature
+        final String security = security().getModifier() + (security() == SecurityModifier.PACKAGE ? EMPTY_STRING : " ");
+        final String finalS = isFinal() ? "final " : EMPTY_STRING;
+        final String staticS = isStatic() ? "static " : EMPTY_STRING;
+        final String volatileS = isVolatile() ? "volatile " : EMPTY_STRING;
+        final String transientS = isTransient() ? "transient " : EMPTY_STRING;
+        final String returnTypeS = JarType.toString(genericReturnType());
+        final String nameS = name();
+
+        final String assignmentS;
+        if (isFinal()) {
+            assignmentS = String.format(" = %s", JavaClassWriter.defaultValueForType(genericReturnType()));
+        } else {
+            assignmentS = EMPTY_STRING;
+        }
+
+        return String.format("%s%s%s%s%s%s %s%s;", security, finalS, staticS, volatileS, transientS, returnTypeS, nameS, assignmentS);
+    }
+
+    public JarClass<?> getClazz() {
+        return jarClass;
+    }
+
+    public boolean isSynthetic() {
+        return field.isSynthetic();
+    }
 }

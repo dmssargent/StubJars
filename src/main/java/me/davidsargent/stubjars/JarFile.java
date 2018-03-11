@@ -14,7 +14,7 @@
 package me.davidsargent.stubjars;
 
 import me.davidsargent.stubjars.components.JarClass;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,13 +41,13 @@ public class JarFile {
         return jarFile;
     }
 
-    public static ClassLoader createClassLoaderFromJars(JarFile... jarFiles) {
+    public static ClassLoader createClassLoaderFromJars(@Nullable ClassLoader parentClassLoader, JarFile... jarFiles) {
         URL[] urls = new URL[jarFiles.length];
         for (int i = 0; i < jarFiles.length; ++i) {
             urls[i] = jarFiles[i].getUrl();
         }
 
-        return new URLClassLoader(urls, JarFile.class.getClassLoader());
+        return new URLClassLoader(urls, parentClassLoader == null ? JarFile.class.getClassLoader() : parentClassLoader);
     }
 
     public ClassLoader classLoader() {
@@ -81,8 +81,8 @@ public class JarFile {
         return jarClasses;
     }
 
-    private void findInnerClasses(Set<JarClass<?>> jarClasses, JarClass jarClass) {
-        for (@NotNull JarClass<?> innerKlazz : jarClass.innerClasses()) {
+    private void findInnerClasses(Set<JarClass<?>> jarClasses, JarClass<?> jarClass) {
+        for (JarClass<?> innerKlazz : jarClass.innerClasses()) {
             jarClasses.add(innerKlazz);
             findInnerClasses(jarClasses, innerKlazz);
         }

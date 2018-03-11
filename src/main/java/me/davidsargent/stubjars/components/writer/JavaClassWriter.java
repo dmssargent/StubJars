@@ -17,18 +17,19 @@ import me.davidsargent.stubjars.Preconditions;
 import me.davidsargent.stubjars.Utils;
 import me.davidsargent.stubjars.components.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static me.davidsargent.stubjars.components.writer.Constants.EMPTY_STRING;
+import static me.davidsargent.stubjars.components.writer.Constants.INDENT;
+
 public class JavaClassWriter extends Writer {
-    private static final String EMPTY_STRING = "";
-    private static final String INDENT = "    ";
     private final JarClass<?> klazz;
     private String compiledString;
 
@@ -82,19 +83,37 @@ public class JavaClassWriter extends Writer {
         // an enum constant to prevent infinite recursion
         if (klazz.isEnum() && !isEnumConstant) {
             String enumMembers = EMPTY_STRING;
-            try {
-                Method values = klazz.getKlazz().getMethod("values");
-                values.setAccessible(true);
-                enumMembers = Arrays.stream((Enum[]) values.invoke(null))
+            Enum[] invokedExpression = getEnumConstants((JarClass<? extends Enum>) klazz);
+
+            if (invokedExpression != null) {
+                enumMembers = Arrays.stream(invokedExpression)
                         .map(member -> compileClass(JarClass.forClass(member.getClass()), true, member.name()))
                         .collect(Collectors.joining("," + System.lineSeparator()));
-            } catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
-                e.printStackTrace();
             }
+
             return String.format("%s{\n%s\n;%s\n%s\n%s\n}", klazzHeader, enumMembers, fields, methods, innerClasses);
         }
 
         return String.format("%s{\n%s\n%s\n%s\n%s\n}", klazzHeader, fields, cotrs, methods, innerClasses);
+    }
+
+    @Nullable
+    private static <T extends Enum> T[] getEnumConstants(@NotNull JarClass<T> klazz) {
+        return getEnumConstants(klazz.getKlazz());
+    }
+
+    @Nullable
+    private static <T extends Enum> T[] getEnumConstants(@NotNull Class<T> klazz) {
+        T[] invokedExpression = null;
+        try {
+            Method values = klazz.getMethod("values");
+            values.setAccessible(true);
+            invokedExpression = (T[]) values.invoke(null);
+        } catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException | ExceptionInInitializerError | NoClassDefFoundError e) {
+            System.err.println(String.format("Failed to load enum \"%s\"", klazz.getName()));
+        }
+
+        return invokedExpression;
     }
 
     /**
@@ -114,13 +133,13 @@ public class JavaClassWriter extends Writer {
         final String security = klazz.security().getModifier() + (klazz.security() == SecurityModifier.PACKAGE ? EMPTY_STRING : " ");
         final String finalS = klazz.isFinal() && !enumTypeClass ? "final " : EMPTY_STRING;
         final String staticS = klazz.isStatic() && !enumTypeClass ? "static " : EMPTY_STRING;
-        final String abstractS = klazz.isAbstract() && !enumTypeClass ? "abstract " : EMPTY_STRING;
+        final String abstractS = klazz.isAbstract() && !enumTypeClass && !klazz.isAnnotation() ? "abstract " : EMPTY_STRING;
 
         final String typeS;
-        if (klazz.isInterface()) {
-            typeS = "interface ";
-        } else if (klazz.isAnnotation()) {
+        if (klazz.isAnnotation()) {
             typeS = "@interface ";
+        } else if (klazz.isInterface()) {
+            typeS = "interface ";
         } else if (enumTypeClass) {
             typeS = "enum ";
         } else {
@@ -134,16 +153,20 @@ public class JavaClassWriter extends Writer {
         final String nameS = klazz.name();
         final String extendsS;
         Class<?> extendsClazz = klazz.extendsClass();
-        if (extendsClazz != null && !extendsClazz.equals(Enum.class)) {
+        if (extendsClazz != null && !(extendsClazz.equals(Enum.class))) {
             extendsS = "extends " + JarType.toString(klazz.extendsGenericClass()) + " ";
         } else {
             extendsS = EMPTY_STRING;
         }
 
         StringBuilder implementsS = new StringBuilder();
-        if (klazz.implementsInterfaces().length > 0) {
+        if (klazz.implementsInterfaces().length > 0 && !(klazz.isAnnotation() && klazz.implementsInterfaces().length == 1)) {
             implementsS = klazz.isInterface() ? new StringBuilder("extends ") : new StringBuilder("implements ");
-            implementsS.append(Utils.arrayToCommaSeparatedList(klazz.implementsGenericInterfaces(), JarType::toString));
+            implementsS.append(Utils.arrayToCommaSeparatedList(klazz.implementsGenericInterfaces(), x -> {
+                if (x.equals(Annotation.class)) return null;
+
+                return JarType.toString(x);
+            }));
             implementsS.append(" ");
         }
 
@@ -155,69 +178,13 @@ public class JavaClassWriter extends Writer {
         // Interfaces don't have constructors
         if (klazz.isInterface()) return EMPTY_STRING;
 
-        final Set<JarConstructor<?>> cotrs = klazz.constructors();
+        final Set<JarConstructor> cotrs = klazz.constructors();
         StringBuilder compiledCotr = new StringBuilder();
-        for (JarConstructor<?> cotr : cotrs) {
-            // If any of these conditions are meet, we shouldn't need to declare a constructor
-//            if (cotr.isDefaultConstructor() &&
-//                    (cotr.getConstructor().getDeclaringClass().getSuperclass() == null ||
-//                            JarConstructor.hasDefaultConstructor(cotr.getConstructor().getDeclaringClass().getSuperclass())))
-//                continue;
-
-            // Figure out correct method signature
-            final String security;
-            if (klazz.isInterface())
-                security = EMPTY_STRING;
-            else
-                security = cotr.security().getModifier() + (cotr.security() == SecurityModifier.PACKAGE ? EMPTY_STRING : " ");
-            final String nameS = cotr.name();
-            final String parametersS = Utils.arrayToCommaSeparatedList(cotr.parameters(), x -> x);
-
-            final String stubMethod;
-            Class<?> klazzSuperClass = klazz.extendsClass();
-
-            // What should the contents of the constructor be?
-            if (klazzSuperClass == null || JarConstructor.hasDefaultConstructor(klazzSuperClass)) {
-                stubMethod = EMPTY_STRING;
-            } else {
-                // We need to call some form of the default constructor, so we can compile code
-                JarConstructor<?>[] declaredConstructors;
-                declaredConstructors = (JarConstructor<?>[]) JarClass.forClass(klazzSuperClass).constructors().toArray(new JarConstructor<?>[0]);
-                if (declaredConstructors.length > 0) {
-                    Type[] genericParameterTypes = declaredConstructors[0].getConstructor().getGenericParameterTypes();
-                    if (genericParameterTypes[0] instanceof Class && klazzSuperClass.equals(genericParameterTypes[0])) {
-                        List<Type> types = new LinkedList<>(Arrays.asList(genericParameterTypes));
-                        types.remove(0);
-                        genericParameterTypes =  types.toArray(new Type[types.size()]);
-                    }
-
-                    stubMethod = INDENT + "super(" + Utils.arrayToCommaSeparatedList(
-                            genericParameterTypes,
-                            paramType -> {
-                                final Type correctType;
-                                if (paramType instanceof TypeVariable) {
-                                    Type testCorrectType = JarConstructor.typeArgumentForClass((TypeVariable) paramType, klazz.getKlazz());
-                                    if (testCorrectType == null) {
-                                        correctType = paramType;
-                                    } else {
-                                        correctType = testCorrectType;
-                                    }
-                                } else {
-                                    correctType = paramType;
-                                }
-                                return "(" + JarType.toString(correctType)  + ") " + JavaClassWriter.defaultValueForType(correctType);
-                            }
-                            ) + ");";
-                } else {
-                    throw new UnsupportedOperationException("Cannot infer super cotr to write for " + klazz.getKlazz().getName());
-                }
-            }
-
-            compiledCotr.append('\n').append(security).append(nameS).append('(').append(parametersS).append(')');
-            compiledCotr.append(" {\n").append(stubMethod).append("\n}\n\n");
+        for (CompileableString cotr : cotrs) {
+            compiledCotr.append(cotr.compileToString());
         }
 
-        return compiledCotr.toString();
+        return String.join("\n", Arrays.stream(compiledCotr.toString().split("\n")).map(x -> INDENT + x).toArray(String[]::new));
     }
 
     /**
@@ -226,28 +193,56 @@ public class JavaClassWriter extends Writer {
      * @param type a {@link Type} to get the default value for
      * @return a String with the default type for the parameter type
      */
-    private static String defaultValueForType(Type type) {
+    public static String defaultValueForType(Type type) {
+        return defaultValueForType(type, false);
+    }
+
+
+    /**
+     * Returns a String contains the default value for a given type
+     *
+     * @param type a {@link Type} to get the default value for
+     * @param constant {@code true} if the returned value should be a constant
+     * @return a String with the default type for the parameter type
+     */
+    public static String defaultValueForType(Type type, boolean constant) {
         if (!(type instanceof Class)) {
             if (type instanceof ParameterizedType) return defaultValueForType(((ParameterizedType) type).getRawType());
             return defaultValueForType(Object.class);
         }
 
-        if (type.equals(int.class)) {
+        if (type.equals(int.class) || type.equals(Integer.class)) {
             return "0";
-        } else if (type.equals(double.class)) {
+        } else if (type.equals(double.class) || type.equals(Double.class)) {
             return "0.0";
-        } else if (type.equals(long.class)) {
+        } else if (type.equals(long.class) || type.equals(Long.class)) {
             return "0L";
-        } else if (type.equals(byte.class)) {
+        } else if (type.equals(byte.class) || type.equals(Byte.class)) {
             return "(byte) 0";
-        } else if (type.equals(short.class)) {
+        } else if (type.equals(short.class) || type.equals(Short.class)) {
             return "(short) 0";
-        } else if (type.equals(boolean.class)) {
+        } else if (type.equals(boolean.class) || type.equals(Boolean.class)) {
             return "false";
-        } else if (type.equals(float.class)) {
+        } else if (type.equals(float.class) || type.equals(Float.class)) {
             return "(float) 0";
-        } else if (type.equals(char.class)) {
+        } else if (type.equals(char.class) || type.equals(Character.class)) {
             return "(char) 0";
+        } else if (type.equals(String.class)) {
+            return "\"\"";
+        } else if (((Class) type).isArray()) {
+            if (constant)
+                return "{}";
+            else
+                return String.format("new %s {}", JarType.toString(type));
+        } else if (((Class) type).isEnum()) {
+            Enum[] enumConstants = getEnumConstants((Class<? extends Enum>) type);
+            if (enumConstants == null) {
+                if (constant) throw new RuntimeException("Cannot determine constant value!");
+
+                return "null";
+            }
+
+            return JarType.toString(type) + "." + enumConstants[0].name();
         } else {
             return "null";
         }
@@ -297,17 +292,19 @@ public class JavaClassWriter extends Writer {
 
             // What should the method body be?
             final String stubMethod;
-            final Class<?> returnType = method.returnType();
+            final Type returnType = method.genericReturnType();
             if (returnType.equals(void.class)) {
                 stubMethod = EMPTY_STRING;
             } else {
-                stubMethod = INDENT + "return " + defaultValueForType(returnType) + ";";
+                stubMethod = INDENT + "return " + JarConstructor.castedDefaultType(returnType, klazz) + ";";
             }
 
             // Finally, put all of the pieces together
             compiledMethods.append('\n').append(security).append(finalS).append(staticS).append(abstractS).append(genericS).append(returnTypeS).append(" ")
                     .append(nameS).append('(').append(parametersS).append(')');
-            if (method.isAbstract() || (klazz.isInterface() && !method.isStatic())) {
+            if (klazz.isAnnotation() && method.hasDefaultValue()) {
+                compiledMethods.append(" default ").append(defaultValueForType(method.defaultValue().getClass(), true)).append(";");
+            } else if (method.isAbstract() || (klazz.isInterface() && !method.isStatic())) {
                 compiledMethods.append(";");
             } else {
                 compiledMethods.append(" {\n").append(stubMethod).append("\n}\n\n");
@@ -344,14 +341,32 @@ public class JavaClassWriter extends Writer {
 
     @NotNull
     private static String compileFields(@NotNull final JarClass<?> klazz) {
-        return EMPTY_STRING;
+        Set<JarField> fields = klazz.fields();
+        StringBuilder builder = new StringBuilder();
+        for (JarField field : fields) {
+            Class<?> superClazz = field.getClazz().extendsClass();
+
+            if (((field.getClazz().isEnum() || field.getClazz().isInnerClass()) && field.isStatic()) || field.isSynthetic()) continue;
+            if (superClazz != null) {
+                try {
+                    superClazz.getDeclaredField(field.name());
+                    continue;
+                } catch (NoSuchFieldException ignored) {
+
+                }
+            }
+
+            builder.append(INDENT).append(field.compileToString()).append("\n");
+        }
+
+        return builder.toString();
     }
 
     @NotNull
     private static String compileInnerClasses(@NotNull final JarClass<?> klazz) {
-        @NotNull JarClass[] innerClasses = klazz.innerClasses();
-        if (innerClasses.length == 0) return EMPTY_STRING;
-        return Arrays.stream(innerClasses)
+        Set<JarClass<?>> innerClasses = klazz.innerClasses();
+        if (innerClasses.size() == 0) return EMPTY_STRING;
+        return innerClasses.stream()
                 .map(x -> ("\n" + compileClass(x) + "\n").split("\n"))
                 .flatMap(Arrays::stream)
                 .collect(Collectors.joining(System.lineSeparator() + INDENT));

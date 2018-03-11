@@ -17,11 +17,9 @@ import me.davidsargent.stubjars.JarFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -57,7 +55,7 @@ public class JarClass<T> extends JarModifers {
     }
 
     @NotNull
-    public static <T> JarClass forClass(@NotNull Class<T> klazz) {
+    public static <T> JarClass<?> forClass(@NotNull Class<T> klazz) {
         if (classToJarClassMap != null && classToJarClassMap.containsKey(klazz)) return classToJarClassMap.get(klazz);
 
         try {
@@ -80,7 +78,7 @@ public class JarClass<T> extends JarModifers {
     }
 
     @NotNull
-    public Class<?> getKlazz() {
+    public Class<T> getKlazz() {
         return klazz;
     }
 
@@ -149,16 +147,20 @@ public class JarClass<T> extends JarModifers {
         return klazz.getModifiers();
     }
 
+    public Set<JarField> fields() {
+        return Arrays.stream(klazz.getDeclaredFields())
+                .map(field -> new JarField(this, field))
+                .filter(field -> field.security() != SecurityModifier.PRIVATE)
+                .collect(Collectors.toSet());
+    }
+
     @NotNull
-    public JarClass[] innerClasses() {
+    public Set<JarClass<?>> innerClasses() {
         Stream<Class<?>> innerClassesStream = Arrays.stream(klazz.getDeclaredClasses())
                 .filter(klazz -> !klazz.isLocalClass())
                 .filter(klazz -> !klazz.isAnonymousClass());
 
-        List<JarClass> collect = innerClassesStream.map(JarClass::forClass)
-                .collect(Collectors.toList());
-
-        return collect.toArray(new JarClass[] {});
+        return innerClassesStream.map(JarClass::forClass).collect(Collectors.toSet());
     }
 
     @NotNull
@@ -223,9 +225,10 @@ public class JarClass<T> extends JarModifers {
     }
 
     @NotNull
-    public Set<JarConstructor<?>> constructors() {
+    public Set<JarConstructor> constructors() {
+        //noinspection unchecked
         return Arrays.stream(klazz.getDeclaredConstructors())
-                .map((Function<Constructor<?>, ? extends JarConstructor<?>>) JarConstructor::new)
+                .map(x -> new JarConstructor(this, x))
                // .filter(cotr -> cotr.security() != SecurityModifier.PRIVATE)
                 .filter(JarConstructor::shouldIncludeCotr)
                 .collect(Collectors.toSet());

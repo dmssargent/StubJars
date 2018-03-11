@@ -18,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.*;
 import java.util.Arrays;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class JarType {
@@ -55,9 +56,16 @@ public class JarType {
 
     @NotNull
     public static String toString(@NotNull Type type) {
+        return toString(type, false, null);
+    }
+
+    @NotNull
+    public static String toString(@NotNull Type type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
         if (type instanceof Class) {
             return JarClass.safeFullNameForClass((Class<?>) type);
-        } else if (type instanceof ParameterizedType) {
+        }
+
+        if (type instanceof ParameterizedType) {
             StringBuilder builder = new StringBuilder();
             ParameterizedType pType = (ParameterizedType) type;
             if (pType.getOwnerType() != null) {
@@ -79,7 +87,7 @@ public class JarType {
             }
 
             Type[] actualTypeArguments = pType.getActualTypeArguments();
-            if (actualTypeArguments != null && actualTypeArguments.length > 0) {
+            if (!keepSimple && (actualTypeArguments != null && actualTypeArguments.length > 0)) {
                 builder.append('<');
                 String collect = Arrays.stream(actualTypeArguments).map(typeArg -> {
                     if (typeArg instanceof Class ||
@@ -93,28 +101,31 @@ public class JarType {
             }
 
             return builder.toString();
-        } else if (type instanceof TypeVariable) {
-            TypeVariable tType = (TypeVariable) type;
-//            if (tType.getBounds()[0] == Object.class) {
-//                return tType.getName();
-//            } else {
-//                return tType.getName() + " extends " + toString(tType.getBounds()[0]);
-//            }
+        }
 
-            return tType.getName();
-        } else if (type instanceof GenericArrayType) {
-            return toString(((GenericArrayType) type).getGenericComponentType()) + "[]";
-        } else if (type instanceof WildcardType) {
+        if (type instanceof TypeVariable) {
+            TypeVariable tType = (TypeVariable) type;
+            if (resolver == null) {
+                return tType.getName();
+            }
+
+            return resolver.apply(tType);
+        }
+
+        if (type instanceof GenericArrayType) {
+            return toString(((GenericArrayType) type).getGenericComponentType(), keepSimple, resolver) + "[]";
+        }
+
+        if (type instanceof WildcardType) {
             WildcardType wType = (WildcardType) type;
             if (wType.getLowerBounds() != null && wType.getLowerBounds().length > 0) {
-                return "? super " + toString(wType.getLowerBounds()[0]);
+                return "? super " + toString(wType.getLowerBounds()[0], keepSimple, resolver);
             } else if (wType.getUpperBounds()[0] == Object.class) {
                 return "?";
             } else {
-                return "? extends " + toString(wType.getUpperBounds()[0]);
+                return "? extends " + toString(wType.getUpperBounds()[0], keepSimple, resolver);
             }
         }
-
 
         // debug return type.toString();
         throw new UnsupportedOperationException(type.getClass().getName());

@@ -41,4 +41,12 @@ public abstract class JarModifers {
     public boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
     }
+
+    public boolean isVolatile() {
+        return Modifier.isVolatile(getModifiers());
+    }
+
+    public boolean isTransient() {
+        return Modifier.isTransient(getModifiers());
+    }
 }

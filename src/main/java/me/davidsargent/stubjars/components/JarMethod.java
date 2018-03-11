@@ -87,4 +87,12 @@ public class JarMethod extends JarModifers {
     public Class<?>[] parameterTypes() {
         return method.getParameterTypes();
     }
+
+    public boolean hasDefaultValue() {
+        return defaultValue() != null;
+    }
+
+    public Object defaultValue() {
+        return method.getDefaultValue();
+    }
 }

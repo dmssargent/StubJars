@@ -116,9 +116,11 @@ public class StubJars {
      */
     public static class Builder {
         private final List<JarFile> jars;
+        private final List<JarFile> classpathJars;
 
         private Builder() {
             jars = new ArrayList<>();
+            classpathJars = new ArrayList<>();
         }
 
         /**
@@ -128,6 +130,15 @@ public class StubJars {
          */
         public void addJar(@NotNull File jar) {
             jars.add(JarFile.forFile(jar));
+        }
+
+        /**
+         * Add a JAR file for {@link StubJars}, that provides classpath info
+         *
+         * @param jar a {@link File} representing a JAR file
+         */
+        public void addClasspathJar(@NotNull File jar) {
+            classpathJars.add(JarFile.forFile(jar));
         }
 
         /**
@@ -148,7 +159,8 @@ public class StubJars {
          */
         @NotNull
         public StubJars build() {
-            ClassLoader classLoader = JarFile.createClassLoaderFromJars(jars.toArray(new JarFile[jars.size()]));
+            ClassLoader cpClassLoader = JarFile.createClassLoaderFromJars(null, classpathJars.toArray(new JarFile[classpathJars.size()]));
+            ClassLoader classLoader = JarFile.createClassLoaderFromJars(cpClassLoader, jars.toArray(new JarFile[jars.size()]));
             ConcurrentMap<Class<?>, JarClass<?>> klazzes = new ConcurrentHashMap<>();
             for (JarFile jar : jars) {
                 final Set<JarClass<?>> classes;

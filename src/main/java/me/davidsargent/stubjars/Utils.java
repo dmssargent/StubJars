@@ -23,8 +23,9 @@ public class Utils {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < elements.length; ++i) {
             String value = func.apply(elements[i]);
+            if (value == null) continue;
             builder.append(value);
-            if (i < elements.length - 1) builder.append(", ");
+            if (i < elements.length - 1 && !(i == elements.length - 2 && func.apply(elements[i + 1]) == null)) builder.append(", ");
         }
 
         return builder.toString();
