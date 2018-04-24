@@ -21,6 +21,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.Set;
@@ -130,6 +132,13 @@ public class JavaClassWriter extends Writer {
     @NotNull
     private static String compileHeader(@NotNull final JarClass<?> klazz) {
         final boolean enumTypeClass = klazz.isEnum();
+        final String annotationS;
+        if (klazz.isAnnotation() && klazz.getKlazz().isAnnotationPresent(Retention.class)) {
+            RetentionPolicy rentionPolicy = klazz.getKlazz().getAnnotation(Retention.class).value();
+            annotationS = "@" + JarClass.safeFullNameForClass(Retention.class) + "(" + JarClass.safeFullNameForClass(RetentionPolicy.class) + "." + rentionPolicy.name() + ") ";
+        } else {
+            annotationS = "";
+        }
         final String security = klazz.security().getModifier() + (klazz.security() == SecurityModifier.PACKAGE ? EMPTY_STRING : " ");
         final String finalS = klazz.isFinal() && !enumTypeClass ? "final " : EMPTY_STRING;
         final String staticS = klazz.isStatic() && !enumTypeClass ? "static " : EMPTY_STRING;
@@ -170,7 +179,7 @@ public class JavaClassWriter extends Writer {
             implementsS.append(" ");
         }
 
-        return String.format("%s%s%s%s%s%s%s%s%s", security, staticS, abstractS, finalS, typeS, nameS, genericS, extendsS, implementsS);
+        return String.format("%s%s%s%s%s%s%s%s%s%s", annotationS, security, staticS, abstractS, finalS, typeS, nameS, genericS, extendsS, implementsS);
     }
 
     @NotNull
