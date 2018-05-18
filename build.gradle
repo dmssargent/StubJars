@@ -1,5 +1,5 @@
 group 'me.davidsargent'
-version '0.1'
+version '0.1.2'
 
 apply plugin: 'java'
 apply plugin: 'application'
@@ -15,6 +15,11 @@ jar {
     manifest {
         attributes("Main-Class": mainClassName)
     }
+}
+
+tasks.withType(AbstractArchiveTask) {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }
 
 dependencies {

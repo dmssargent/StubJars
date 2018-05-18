@@ -294,7 +294,7 @@ public class JavaClassWriter extends Writer {
             final String returnTypeS = JarType.toString(method.genericReturnType());
             final String nameS = method.name();
             final String parametersS = Utils.arrayToCommaSeparatedList(method.parameters(), x -> x);
-
+            final String throwsS = method.requiresThrowsSignature() ? " throws " + Utils.arrayToCommaSeparatedList(method.throwsTypes(), JarType::toString) : "";
             final String genericS;
             TypeVariable<Method>[] typeParameters = method.typeParameters();
             genericS = convertTypeParametersToString(typeParameters);
@@ -310,7 +310,7 @@ public class JavaClassWriter extends Writer {
 
             // Finally, put all of the pieces together
             compiledMethods.append('\n').append(security).append(finalS).append(staticS).append(abstractS).append(genericS).append(returnTypeS).append(" ")
-                    .append(nameS).append('(').append(parametersS).append(')');
+                    .append(nameS).append('(').append(parametersS).append(')').append(throwsS);
             if (klazz.isAnnotation() && method.hasDefaultValue()) {
                 compiledMethods.append(" default ").append(defaultValueForType(method.defaultValue().getClass(), true)).append(";");
             } else if (method.isAbstract() || (klazz.isInterface() && !method.isStatic())) {

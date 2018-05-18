@@ -130,4 +130,8 @@ public class JarType {
         // debug return type.toString();
         throw new UnsupportedOperationException(type.getClass().getName());
     }
+
+    public static boolean isArray(Type parameterizedType) {
+        return parameterizedType instanceof GenericArrayType || (parameterizedType instanceof Class && ((Class) parameterizedType).isArray());
+    }
 }

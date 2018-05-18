@@ -13,15 +13,15 @@
 
 package me.davidsargent.stubjars.components;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
+import org.jetbrains.annotations.NotNull;
+
+import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.Set;
 
 public class JarMethod extends JarModifers {
     private final Method method;
+    private String[] cachedParameters;
 
     public JarMethod(Method method) {
         this.method = method;
@@ -40,11 +40,32 @@ public class JarMethod extends JarModifers {
         return method.getReturnType();
     }
 
+    public boolean isVarArg() {
+        return method.isVarArgs();
+    }
+
+    @NotNull
     public String[] parameters() {
+        if (cachedParameters != null) return cachedParameters;
         Parameter[] parameters = method.getParameters();
-        return Arrays.stream(parameters)
+        String[] stringifiedParameters = Arrays.stream(parameters)
                 .map(parameter -> JarType.toString(parameter.getParameterizedType()) + " " + parameter.getName())
                 .toArray(String[]::new);
+
+        if (method.isVarArgs()) {
+            Parameter varArgsParameter = parameters[parameters.length - 1];
+            Type parameterizedType = varArgsParameter.getParameterizedType();
+            if (JarType.isArray(parameterizedType)) {
+                if (parameterizedType instanceof GenericArrayType) {
+                    stringifiedParameters[parameters.length - 1] = JarType.toString(((GenericArrayType) parameterizedType).getGenericComponentType()) + "... " + varArgsParameter.getName();
+                } else if (parameterizedType instanceof Class) {
+                    stringifiedParameters[parameters.length - 1] = JarType.toString(((Class) parameterizedType).getComponentType()) + "... " + varArgsParameter.getName();
+                }
+            }
+        }
+
+        cachedParameters = stringifiedParameters;
+        return stringifiedParameters;
     }
 
     public boolean isSynthetic() {
@@ -94,5 +115,13 @@ public class JarMethod extends JarModifers {
 
     public Object defaultValue() {
         return method.getDefaultValue();
+    }
+
+    public Type[] throwsTypes() {
+        return method.getGenericExceptionTypes();
+    }
+
+    public boolean requiresThrowsSignature() {
+        return throwsTypes().length > 0;
     }
 }
