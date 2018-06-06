@@ -3,6 +3,11 @@
 Creates a set of Java source files containing the minimum amount of
 code to create a JAR with an identical public signature
 
+## Release Notes
+### v0.1.3
+ - Added `throws` to generated method signatures that have orginally specified a method signature
+ - Methods that were originally varargs are now correctly generated as varargs
+
 ## Passing Tests
 * Creates a compilable set of Java source files for GSON
 
