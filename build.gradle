@@ -4,9 +4,9 @@ version '0.1.4'
 apply plugin: 'java'
 apply plugin: 'application'
 
+
 sourceCompatibility = 1.8
 mainClassName = "me.davidsargent.stubjars.Main"
-
 repositories {
     mavenCentral()
 }

@@ -91,7 +91,15 @@ public class StubJars {
             sourceFiles.append(file.getAbsolutePath()).append(System.lineSeparator());
             writer.write();
         }
+
         writerThread.done();
+        try {
+            writerThread.waitForCompletion();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
         Writer sourcesList = new Writer(SOURCES_LIST_FILE);
         try {
             sourcesList.write(sourceFiles.toString());

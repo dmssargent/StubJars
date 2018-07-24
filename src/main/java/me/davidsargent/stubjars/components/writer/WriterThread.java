@@ -14,12 +14,14 @@
 package me.davidsargent.stubjars.components.writer;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Semaphore;
 
 /**
  * @see Writer
  */
 public class WriterThread extends Thread implements Runnable {
     private final ArrayBlockingQueue<Writer> writersToProcess;
+    private Thread runningThread = null;
     private volatile boolean stop = false;
 
     public WriterThread() {
@@ -31,6 +33,10 @@ public class WriterThread extends Thread implements Runnable {
         stop = true;
     }
 
+    public void kill() {
+        runningThread.interrupt();
+    }
+
     void addWriter(Writer writer) {
         try {
             writersToProcess.put(writer);
@@ -39,21 +45,28 @@ public class WriterThread extends Thread implements Runnable {
         }
     }
 
-    @Override
-    public void run() {
-        while (!Thread.currentThread().isInterrupted() && !(writersToProcess.isEmpty() && stop)) {
-            Writer writer = writersToProcess.poll();
-            if (writer == null) {
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+    public void waitForCompletion() throws InterruptedException {
+        if (runningThread == null) return;
+        runningThread.join();
+    }
 
-                continue;
+    private void internalRun() {
+        while (!Thread.currentThread().isInterrupted() && !(writersToProcess.isEmpty() && stop)) {
+            Writer writer;
+            try {
+                writer = writersToProcess.take();
+            } catch (InterruptedException e) {
+                return;
             }
 
             writer._threadWrite();
         }
+    }
+
+    @Override
+    public void run() {
+        runningThread = Thread.currentThread();
+        internalRun();
+        runningThread = null;
     }
 }
