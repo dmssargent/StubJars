@@ -1,5 +1,5 @@
 group 'me.davidsargent'
-version '0.1.4'
+version '0.2.0-alpha.2'
 
 apply plugin: 'java'
 apply plugin: 'application'
@@ -14,6 +14,10 @@ repositories {
 jar {
     manifest {
         attributes("Main-Class": mainClassName)
+    }
+
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
 
