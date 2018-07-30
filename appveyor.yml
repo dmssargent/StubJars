@@ -1,0 +1,14 @@
+version: 0.2.{build}
+
+branches:
+  only:
+  - master
+
+build_script:
+- sh: ./gradlew assemble
+
+test_script:
+- sh: ./gradlew test
+
+before_deploy:
+- sh: ./gradlew distZip

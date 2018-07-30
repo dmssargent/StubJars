@@ -11,8 +11,10 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components;
+package davidsar.gent.stubjars.components;
 
+import davidsar.gent.stubjars.Utils;
+import davidsar.gent.stubjars.components.writer.Constants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,31 +23,29 @@ import java.util.Arrays;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class JarType {
+class JarType {
     private final Type type;
-    private final boolean isGeneric;
 
     public JarType(@NotNull Type type) {
         this.type = type;
-        isGeneric = type instanceof ParameterizedType;
     }
 
-    private boolean isGeneric() {
-        return isGeneric;
-    }
+    static String convertTypeParametersToString(TypeVariable<?>[] typeParameters) {
+        String genericS;
+        if (typeParameters.length == 0) {
+            genericS = Constants.SPACE;
+        } else {
+            String typeParams = Utils.arrayToCommaSeparatedList(typeParameters, typeParam -> {
+                if (typeParam.getBounds()[0] == Object.class) {
+                    return typeParam.getName();
+                } else {
+                    return typeParam.getName() + " extends " + JarType.toString(typeParam.getBounds()[0]);
+                }
+            });
+            genericS = "<" + typeParams + "> ";
+        }
 
-    @Nullable
-    public Class<?> getOwnerClass() {
-        return isGeneric() ? ((Class<?>) getParameterizedType().getOwnerType()) : (Class<?>) type;
-    }
-
-    public Type getRawType() {
-        return isGeneric() ? getParameterizedType().getRawType() : type;
-    }
-
-    @NotNull
-    private ParameterizedType getParameterizedType() {
-        return (ParameterizedType) type;
+        return genericS;
     }
 
     @NotNull
@@ -55,12 +55,12 @@ public class JarType {
     }
 
     @NotNull
-    public static String toString(@NotNull Type type) {
+    static String toString(@NotNull Type type) {
         return toString(type, false, null);
     }
 
     @NotNull
-    public static String toString(@NotNull Type type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
+    static String toString(@NotNull Type type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
         if (type instanceof Class) {
             return JarClass.safeFullNameForClass((Class<?>) type);
         }
@@ -77,7 +77,7 @@ public class JarType {
                     builder.append(".");
                     Class<?> rawTypeOfOwner = (Class<?>) ((ParameterizedType) pType.getOwnerType()).getRawType();
                     String rawType = ((Class<?>) pType.getRawType()).getName()
-                            .replace(rawTypeOfOwner.getName() + "$", "");
+                            .replace(rawTypeOfOwner.getName() + "$", Constants.EMPTY_STRING);
                     builder.append(rawType);
                 } else {
                     throw new UnsupportedOperationException(type.getClass().getName());
@@ -127,11 +127,10 @@ public class JarType {
             }
         }
 
-        // debug return type.toString();
         throw new UnsupportedOperationException(type.getClass().getName());
     }
 
-    public static boolean isArray(Type parameterizedType) {
+    static boolean isArray(Type parameterizedType) {
         return parameterizedType instanceof GenericArrayType || (parameterizedType instanceof Class && ((Class) parameterizedType).isArray());
     }
 }

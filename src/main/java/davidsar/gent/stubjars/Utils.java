@@ -11,7 +11,7 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars;
+package davidsar.gent.stubjars;
 
 import org.jetbrains.annotations.NotNull;
 

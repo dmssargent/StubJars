@@ -11,8 +11,14 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components;
+package davidsar.gent.stubjars;
 
-public interface CompileableString {
-    String compileToString();
+import org.jetbrains.annotations.Contract;
+
+public class Preconditions {
+    @Contract("null -> fail")
+    public static void checkNotNull(Object o) {
+        if (o == null)
+            throw new NullPointerException();
+    }
 }

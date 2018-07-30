@@ -11,11 +11,13 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components.writer;
+package davidsar.gent.stubjars.components.writer;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -23,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 public class Writer {
+    private static final Logger log = LoggerFactory.getLogger(Writer.class);
     private final File file;
     private volatile String dataCache;
     private final WriterThread writerThread;
@@ -90,7 +93,7 @@ public class Writer {
         try {
             write(dataCache);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Encountered an error writing to file", e);
         }
         dataCache = null;
     }

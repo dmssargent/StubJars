@@ -11,14 +11,23 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars;
+package davidsar.gent.stubjars.components;
 
-import org.jetbrains.annotations.Contract;
+import davidsar.gent.stubjars.components.writer.Constants;
 
-public class Preconditions {
-    @Contract("null -> fail")
-    public static void checkNotNull(Object o) {
-        if (o == null)
-            throw new NullPointerException();
+public enum SecurityModifier {
+    PRIVATE("private"), PROTECTED("protected"), PACKAGE(Constants.EMPTY_STRING), PUBLIC("public");
+    private final String modifier;
+
+    SecurityModifier(String modifier) {
+        this.modifier = modifier;
+    }
+
+    public String getModifier() {
+        return modifier;
+    }
+
+    public Expression expression() {
+        return Expression.of(Expression.of(getModifier()), Expression.when(this != SecurityModifier.PACKAGE, Expression.StringExpression.SPACE));
     }
 }

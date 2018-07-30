@@ -11,17 +11,8 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components;
+package davidsar.gent.stubjars.components;
 
-public enum SecurityModifier {
-    PRIVATE("private"), PROTECTED("protected"), PACKAGE(""), PUBLIC("public");
-    private final String modifier;
-
-    SecurityModifier(String modifier) {
-        this.modifier = modifier;
-    }
-
-    public String getModifier() {
-        return modifier;
-    }
+interface CompileableExpression {
+    Expression compileToExpression();
 }

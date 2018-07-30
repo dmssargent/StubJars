@@ -11,10 +11,9 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components.writer;
+package davidsar.gent.stubjars.components.writer;
 
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Semaphore;
 
 /**
  * @see Writer
@@ -33,15 +32,11 @@ public class WriterThread extends Thread implements Runnable {
         stop = true;
     }
 
-    public void kill() {
-        runningThread.interrupt();
-    }
-
     void addWriter(Writer writer) {
         try {
             writersToProcess.put(writer);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Thread.currentThread().interrupt();
         }
     }
 

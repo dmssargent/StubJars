@@ -11,11 +11,11 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components;
+package davidsar.gent.stubjars.components;
 
 import java.lang.reflect.Modifier;
 
-public abstract class JarModifers {
+public abstract class JarModifiers {
     protected abstract int getModifiers();
     public SecurityModifier security() {
         int modifiers = getModifiers();
@@ -30,23 +30,23 @@ public abstract class JarModifers {
         }
     }
 
-    public boolean isFinal() {
+    boolean isFinal() {
         return Modifier.isFinal(getModifiers());
     }
 
-    public boolean isStatic() {
+    boolean isStatic() {
         return Modifier.isStatic(getModifiers());
     }
 
-    public boolean isAbstract() {
+    boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
     }
 
-    public boolean isVolatile() {
+    boolean isVolatile() {
         return Modifier.isVolatile(getModifiers());
     }
 
-    public boolean isTransient() {
+    boolean isTransient() {
         return Modifier.isTransient(getModifiers());
     }
 }

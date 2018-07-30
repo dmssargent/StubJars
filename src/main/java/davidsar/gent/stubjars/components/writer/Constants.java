@@ -11,9 +11,20 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components.writer;
+package davidsar.gent.stubjars.components.writer;
 
 public class Constants {
     public static final String EMPTY_STRING = "";
+    public static final String SPACE = " ";
+    public static final String SEMICOLON = ";";
     public static final String INDENT = "    ";
+    public final static String NEW_LINE_CHARACTER = "\n";
+
+    public final static String LEFT_PAREN = "(";
+    public final static String RIGHT_PAREN = ")";
+    public static final String LCURLY = "{";
+    public static final String RCURLY = "}";
+    public static final String COMMA = ",";
+    public static final String AT = "@";
+    public static final String PERIOD = ".";
 }

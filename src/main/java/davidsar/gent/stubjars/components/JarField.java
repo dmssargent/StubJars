@@ -11,17 +11,12 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars.components;
-
-import me.davidsargent.stubjars.components.writer.JavaClassWriter;
+package davidsar.gent.stubjars.components;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 
-import static me.davidsargent.stubjars.components.writer.Constants.EMPTY_STRING;
-
-
-public class JarField extends JarModifers implements CompileableString {
+public class JarField extends JarModifiers implements CompileableExpression {
     private final JarClass jarClass;
     private final Field field;
 
@@ -39,33 +34,29 @@ public class JarField extends JarModifers implements CompileableString {
         return field.getName();
     }
 
-    public Class<?> returnType() {
-        return field.getType();
-    }
-
-    public Type genericReturnType() {
+    private Type genericReturnType() {
         return field.getGenericType();
     }
 
     @Override
-    public String compileToString() {
+    public Expression compileToExpression() {
         // Figure method signature
-        final String security = security().getModifier() + (security() == SecurityModifier.PACKAGE ? EMPTY_STRING : " ");
-        final String finalS = isFinal() ? "final " : EMPTY_STRING;
-        final String staticS = isStatic() ? "static " : EMPTY_STRING;
-        final String volatileS = isVolatile() ? "volatile " : EMPTY_STRING;
-        final String transientS = isTransient() ? "transient " : EMPTY_STRING;
-        final String returnTypeS = JarType.toString(genericReturnType());
-        final String nameS = name();
+        final Expression security = Expression.of(Expression.of(security().getModifier()), Expression.when(security() != SecurityModifier.PACKAGE, Expression.StringExpression.SPACE));
+        final Expression finalS = Expression.whenWithSpace(isFinal(), "final");
+        final Expression staticS = Expression.whenWithSpace(isStatic(), "static");
+        final Expression volatileS = Expression.whenWithSpace(isVolatile(), "volatile");
+        final Expression transientS = Expression.whenWithSpace(isTransient(), "transient");
+        final Expression returnTypeS = Expression.of(JarType.toString(genericReturnType()));
+        final Expression nameS = Expression.of(name());
 
-        final String assignmentS;
+        final Expression assignmentS;
         if (isFinal()) {
-            assignmentS = String.format(" = %s", JavaClassWriter.defaultValueForType(genericReturnType()));
+            assignmentS = Expression.of(Expression.of(" = "), Expression.forType(genericReturnType(), Value.defaultValueForType(genericReturnType())));
         } else {
-            assignmentS = EMPTY_STRING;
+            assignmentS = Expression.StringExpression.EMPTY;
         }
 
-        return String.format("%s%s%s%s%s%s %s%s;", security, finalS, staticS, volatileS, transientS, returnTypeS, nameS, assignmentS);
+        return Expression.of(Expression.of(security, finalS, staticS, volatileS, transientS, returnTypeS).spaceAfter(), nameS, assignmentS).statement();
     }
 
     public JarClass<?> getClazz() {

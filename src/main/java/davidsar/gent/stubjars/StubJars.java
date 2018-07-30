@@ -11,13 +11,13 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package me.davidsargent.stubjars;
+package davidsar.gent.stubjars;
 
-import me.davidsargent.stubjars.components.JarClass;
-import me.davidsargent.stubjars.components.SecurityModifier;
-import me.davidsargent.stubjars.components.writer.JavaClassWriter;
-import me.davidsargent.stubjars.components.writer.Writer;
-import me.davidsargent.stubjars.components.writer.WriterThread;
+import davidsar.gent.stubjars.components.JarClass;
+import davidsar.gent.stubjars.components.SecurityModifier;
+import davidsar.gent.stubjars.components.writer.JavaClassWriter;
+import davidsar.gent.stubjars.components.writer.Writer;
+import davidsar.gent.stubjars.components.writer.WriterThread;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -43,7 +43,7 @@ public class StubJars {
     private final File CLASSES_DIR = new File(BUILD_DIR, "classes");
     private final File SOURCES_LIST_FILE = new File(SOURCE_DIR, "sources.list");
 
-    private StubJars(@NotNull ConcurrentMap<Class<?>, JarClass<?>> klazzes, @NotNull ClassLoader classLoader) {
+    private StubJars(@NotNull ConcurrentMap<Class<?>, JarClass<?>> klazzes) {
         this.klazzes = klazzes;
     }
 
@@ -53,11 +53,11 @@ public class StubJars {
      * @return a new StubJars builder
      */
     @NotNull
-    public static Builder builder() {
+    static Builder builder() {
         return new Builder();
     }
 
-    public void createDirectoryTree() {
+    void createDirectoryTree() {
         if (packages == null) buildPackagesList();
         SOURCE_DIR.mkdirs();
         createBuildDir();
@@ -75,7 +75,7 @@ public class StubJars {
         }
     }
 
-    public void createSourceFiles() {
+    void createSourceFiles() {
         WriterThread writerThread = new WriterThread();
         writerThread.start();
         StringBuilder sourceFiles = new StringBuilder();
@@ -84,7 +84,7 @@ public class StubJars {
                 continue;
             // this breaks compilation (currently)
             // todo: make unneeded
-            if (e.getKlazz().getName().equals("java.lang.Enum"))
+            if (e.getKlazz().getName().equals(Enum.class.getName()))
                 continue;
             File file = new File(SOURCE_DIR, e.getKlazz().getName().replace('.', File.separatorChar) + ".java");
             JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
@@ -114,15 +114,14 @@ public class StubJars {
         CLASSES_DIR.mkdirs();
     }
 
-    @NotNull
-    public File getSourceDestination() {
+    @NotNull File getSourceDestination() {
         return SOURCE_DIR;
     }
 
     /**
      * Creates new {@link StubJars} instances
      */
-    public static class Builder {
+    static class Builder {
         private final List<JarFile> jars;
         private final List<JarFile> classpathJars;
 
@@ -136,7 +135,7 @@ public class StubJars {
          *
          * @param jar a {@link File} representing a JAR file
          */
-        public void addJar(@NotNull File jar) {
+        void addJar(@NotNull File jar) {
             jars.add(JarFile.forFile(jar));
         }
 
@@ -145,7 +144,7 @@ public class StubJars {
          *
          * @param jar a {@link File} representing a JAR file
          */
-        public void addClasspathJar(@NotNull File jar) {
+        void addClasspathJar(@NotNull File jar) {
             classpathJars.add(JarFile.forFile(jar));
         }
 
@@ -154,7 +153,7 @@ public class StubJars {
          *
          * @param jars the {@link File}s representing a JAR files
          */
-        public void addJars(@NotNull File... jars) {
+        void addJars(@NotNull File... jars) {
             for (File jar : jars) {
                 addJar(jar);
             }
@@ -165,16 +164,15 @@ public class StubJars {
          *
          * @return a new {@link StubJars} instance
          */
-        @NotNull
-        public StubJars build() {
-            ClassLoader cpClassLoader = JarFile.createClassLoaderFromJars(null, classpathJars.toArray(new JarFile[classpathJars.size()]));
-            ClassLoader classLoader = JarFile.createClassLoaderFromJars(cpClassLoader, jars.toArray(new JarFile[jars.size()]));
+        @NotNull StubJars build() {
+            ClassLoader cpClassLoader = JarFile.createClassLoaderFromJars(null, classpathJars.toArray(new JarFile[0]));
+            ClassLoader classLoader = JarFile.createClassLoaderFromJars(cpClassLoader, jars.toArray(new JarFile[0]));
             ConcurrentMap<Class<?>, JarClass<?>> klazzes = new ConcurrentHashMap<>();
             for (JarFile jar : jars) {
                 final Set<JarClass<?>> classes;
                 try {
                     classes = jar.getClasses(classLoader);
-                } catch (IOException | ClassNotFoundException e) {
+                } catch (IOException e) {
                     throw new RuntimeException("Cannot load jar!", e);
                 }
 
@@ -184,7 +182,7 @@ public class StubJars {
             }
 
             JarClass.loadClassToJarClassMap(klazzes);
-            return new StubJars(klazzes, classLoader);
+            return new StubJars(klazzes);
         }
     }
 }
