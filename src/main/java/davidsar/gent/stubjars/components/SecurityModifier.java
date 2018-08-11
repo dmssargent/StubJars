@@ -13,6 +13,9 @@
 
 package davidsar.gent.stubjars.components;
 
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
 import davidsar.gent.stubjars.components.writer.Constants;
 
 public enum SecurityModifier {
@@ -27,7 +30,16 @@ public enum SecurityModifier {
         return modifier;
     }
 
+    /**
+     * An {@link Expression} representation of how the {@link SecurityModifier} should look in
+     * Java source code.
+     *
+     * @return the {@code Expression} representation of this
+     */
     public Expression expression() {
-        return Expression.of(Expression.of(getModifier()), Expression.when(this != SecurityModifier.PACKAGE, Expression.StringExpression.SPACE));
+        return Expressions.of(
+            Expressions.fromString(getModifier()),
+            Expressions.when(this != SecurityModifier.PACKAGE, StringExpression.SPACE)
+        );
     }
 }

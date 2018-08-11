@@ -64,7 +64,7 @@ class Main {
 
     private static void parseArg(StubJars.Builder builder, String arg) {
         if (arg.startsWith("-cp=")) {
-            String path = arg.split("=")[1];
+            String path = arg.split("=", -1)[1];
             final String[] classpathJars;
             if (path.contains(File.pathSeparator)) {
                 classpathJars = path.split(File.pathSeparator);

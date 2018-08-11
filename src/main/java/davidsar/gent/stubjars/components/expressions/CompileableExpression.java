@@ -11,12 +11,8 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package davidsar.gent.stubjars;
+package davidsar.gent.stubjars.components.expressions;
 
-public class Preconditions {
-//    @Contract("null -> fail")
-//    @Deprecated
-//    public static void checkNotNull(Object o) {
-//        Objects.requireNonNull(o);
-//    }
+public interface CompileableExpression {
+    Expression compileToExpression();
 }

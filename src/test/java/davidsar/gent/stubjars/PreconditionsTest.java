@@ -13,10 +13,17 @@
 
 package davidsar.gent.stubjars;
 
-public class Preconditions {
-//    @Contract("null -> fail")
-//    @Deprecated
-//    public static void checkNotNull(Object o) {
-//        Objects.requireNonNull(o);
+@SuppressWarnings("deprecation")
+public class PreconditionsTest {
+//    @Test(expected = NullPointerException.class)
+//    public void checkNotNullWithNull() {
+//        Preconditions.checkNotNull(null);
+//    }
+//
+//    @Test
+//    public void checkNotNullWithNonNull() {
+//        final Object test = new Object();
+//
+//        Preconditions.checkNotNull(test);
 //    }
 }

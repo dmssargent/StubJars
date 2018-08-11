@@ -14,19 +14,30 @@
 package davidsar.gent.stubjars.components;
 
 import davidsar.gent.stubjars.Utils;
+import davidsar.gent.stubjars.components.expressions.CompileableExpression;
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
 import davidsar.gent.stubjars.components.writer.Constants;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.*;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.Set;
 
 public class JarMethod extends JarModifiers implements CompileableExpression {
-    private final JarClass parentClazz;
+    private static final Logger log = LoggerFactory.getLogger(JarMethod.class);
+    private final JarClass<?> parentClazz;
     private final Method method;
     private String[] cachedParameters;
 
-    JarMethod(@NotNull JarClass parentClazz, @NotNull Method method) {
+    JarMethod(@NotNull JarClass<?> parentClazz, @NotNull Method method) {
         this.parentClazz = parentClazz;
         this.method = method;
     }
@@ -42,7 +53,9 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
 
     @NotNull
     private String[] parameters() {
-        if (cachedParameters != null) return cachedParameters;
+        if (cachedParameters != null) {
+            return cachedParameters;
+        }
         Parameter[] parameters = method.getParameters();
         String[] stringifiedParameters = Arrays.stream(parameters)
                 .map(parameter -> JarType.toString(parameter.getParameterizedType()) + Constants.SPACE + parameter.getName())
@@ -53,9 +66,14 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
             Type parameterizedType = varArgsParameter.getParameterizedType();
             if (JarType.isArray(parameterizedType)) {
                 if (parameterizedType instanceof GenericArrayType) {
-                    stringifiedParameters[parameters.length - 1] = JarType.toString(((GenericArrayType) parameterizedType).getGenericComponentType()) + "... " + varArgsParameter.getName();
+                    stringifiedParameters[parameters.length - 1] =
+                        JarType.toString(
+                            ((GenericArrayType) parameterizedType).getGenericComponentType())
+                            + "... " + varArgsParameter.getName();
                 } else if (parameterizedType instanceof Class) {
-                    stringifiedParameters[parameters.length - 1] = JarType.toString(((Class) parameterizedType).getComponentType()) + "... " + varArgsParameter.getName();
+                    stringifiedParameters[parameters.length - 1] =
+                        JarType.toString(((Class) parameterizedType).getComponentType()) + "... "
+                            + varArgsParameter.getName();
                 }
             }
         }
@@ -65,67 +83,118 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
     }
 
     private Expression buildMethod(boolean isEnumField) {
-        // Skip create methods for these types of things, enum fields can't have static methods
-        if ((isEnumField || parentClazz.isInterface()) && isStatic()) return Expression.StringExpression.EMPTY;
-        // Check if the enum method we are about to write could actually exist
-        if (isEnumField) {
-            // todo: fix this issue since Enum members may have static classes
-            if (isFinal())
-                return Expression.StringExpression.EMPTY;
-            Class<?> declaringClass = parentClazz.getKlazz().getDeclaringClass();
-            if (declaringClass != null) {
-                try {
-                    declaringClass.getDeclaredMethod(name(), parameterTypes());
-                    return Expression.StringExpression.EMPTY;
-                } catch (NoSuchMethodException ignored) {
-                }
-            }
+        if (!shouldWriteMethod(isEnumField)) {
+            return StringExpression.EMPTY;
         }
 
         // Figure method signature
         final Expression security;
         if (parentClazz.isInterface()) {
-            security = Expression.StringExpression.EMPTY;
+            security = StringExpression.EMPTY;
         } else {
-            security = Expression.of(Expression.of(security().getModifier()), Expression.whenWithSpace(security() != SecurityModifier.PACKAGE, Constants.SPACE));
+            security = Expressions.of(
+                Expressions.fromString(security().getModifier()),
+                Expressions.whenWithSpace(
+                    security() != SecurityModifier.PACKAGE, Constants.SPACE
+                )
+            );
         }
-        final Expression finalS = Expression.whenWithSpace(isFinal(), "final");
-        final Expression staticS = Expression.whenWithSpace(isStatic(), "static");
+        final Expression finalS = Expressions.whenWithSpace(isFinal(), "final");
+        final Expression staticS = Expressions.whenWithSpace(isStatic(), "static");
         final Expression abstractS;
-        if (parentClazz.isInterface()) {
-            abstractS = Expression.StringExpression.EMPTY;
+        if (parentClazz.isInterface() || isEnumField) {
+            abstractS = StringExpression.EMPTY;
         } else {
-            abstractS = Expression.whenWithSpace(isAbstract(), "abstract");
+            abstractS = Expressions.whenWithSpace(isAbstract(), "abstract");
         }
-        final Expression returnTypeS = Expression.forType(genericReturnType(), JarType.toString(genericReturnType()));
-        final Expression nameS = Expression.of(name());
-        final Expression parametersS = Expression.of(Utils.arrayToCommaSeparatedList(parameters(), x -> x));
-        final Expression throwsS = Expression.of(requiresThrowsSignature() ? " throws " + Utils.arrayToCommaSeparatedList(throwsTypes(), JarType::toString) : Constants.EMPTY_STRING);
+
+        final Expression returnTypeS = Expressions.forType(
+            genericReturnType(), JarType.toExpression(genericReturnType())
+        );
+        final Expression nameS = Expressions.fromString(name());
+        final Expression parametersS = Utils.arrayToListExpression(parameters(), Expressions::fromString);
+        final Expression throwsS = Expressions.fromString(requiresThrowsSignature()
+            ? " throws " + Utils.arrayToListExpression(throwsTypes(), JarType::toExpression)
+            : Constants.EMPTY_STRING);
         final Expression genericS;
         TypeVariable<Method>[] typeParameters = typeParameters();
-        genericS = Expression.of(JarType.convertTypeParametersToString(typeParameters));
+        genericS = Expressions.fromString(JarType.convertTypeParametersToString(typeParameters));
 
         // What should the method body be?
         final Expression stubMethod;
         final Type returnType = genericReturnType();
         if (returnType.equals(void.class)) {
-            stubMethod = Expression.block();
+            stubMethod = Expressions.emptyBlock();
         } else {
-            stubMethod = Expression.block(Expression.of(Expression.spaceAfter("return"), Expression.forType(returnType, JarConstructor.castedDefaultType(returnType, parentClazz))).statement());
+            stubMethod = Expressions
+                .blockWith(Expressions.of(
+                    Expressions.toSpaceAfter("return"),
+                    Expressions.forType(
+                        returnType, JarConstructor.castedDefaultType(returnType, parentClazz))
+                ).asStatement());
         }
 
         // Finally, put all of the pieces together
-        Expression methodHeader = Expression.of(Expression.StringExpression.NEW_LINE, security, finalS, staticS, abstractS, genericS, returnTypeS, Expression.StringExpression.SPACE, nameS, Expression.parenthetical(parametersS), throwsS);
+        Expression methodHeader = Expressions.of(
+            StringExpression.NEW_LINE,
+            security,
+            finalS,
+            staticS,
+            abstractS,
+            genericS,
+            returnTypeS,
+            StringExpression.SPACE,
+            nameS,
+            Expressions.asParenthetical(parametersS),
+            throwsS
+        );
+
         Expression methodBody;
         if (parentClazz.isAnnotation() && hasDefaultValue()) {
-            methodBody = Expression.of(Expression.of(" default "), Expression.forType(defaultValue().getClass(), Value.defaultValueForType(defaultValue().getClass(), true)), Expression.StringExpression.SEMICOLON);
-        } else if (isAbstract() || (parentClazz.isInterface() && !isStatic())) {
-            methodBody = Expression.StringExpression.SEMICOLON;
+            methodBody = Expressions.of(
+                Expressions.fromString(" default "),
+                Expressions.forType(
+                    defaultValue().getClass(), Value.defaultValueForType(defaultValue().getClass(),
+                        true)
+                ),
+                StringExpression.SEMICOLON
+            );
+        } else if ((isAbstract() && !isEnumField) || (parentClazz.isInterface() && !isStatic())) {
+            methodBody = StringExpression.SEMICOLON;
         } else {
             methodBody = stubMethod;
         }
 
-        return Expression.of(methodHeader, Expression.StringExpression.SPACE, methodBody);
+        return Expressions.of(methodHeader, StringExpression.SPACE, methodBody);
+    }
+
+    private boolean shouldWriteMethod(boolean isEnumField) {
+        if (parentClazz.name().equals("FieldNamingPolicy")) {
+            log.debug("");
+        }
+
+        // Skip create methods for these types of things, enum fields can't have static methods
+        if ((isEnumField || parentClazz.isInterface()) && isStatic()) {
+            return false;
+        }
+
+        // Check if the enum method we are about to write could actually exist
+        if (isEnumField) {
+            if (isFinal()) {
+                return false;
+            }
+
+            Class<?> declaringClass = parentClazz.getClazz().getDeclaringClass();
+            if (declaringClass != null) {
+                try {
+                    declaringClass.getDeclaredMethod(name(), parameterTypes());
+                    return false;
+                } catch (NoSuchMethodException ignored) {
+                    // log.debug("method \"{}\" does not exist on enum \"{}\"", name(), parentClazz.name());
+                }
+            }
+        }
+        return true;
     }
 
     boolean isSynthetic() {
@@ -133,16 +202,21 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
     }
 
     boolean shouldIncludeStaticMethod() {
-        if (!isStatic()) return shouldIncludeMethod();
-        JarClass<?> klazz = JarClass.forClass(method.getDeclaringClass());
-        if (klazz.isEnum()) {
-            String name = method.getName();
-            if (name.equals("values") || name.equals("valueOf")) {
+        if (name().equals("translateName")) {
+            log.debug("");
+        }
+
+        if (!isStatic()) {
+            return shouldIncludeMethod();
+        }
+
+        if (parentClazz.isEnum()) {
+            if (name().equals("values") || name().equals("valueOf")) {
                 return false;
             }
         }
 
-        Set<JarClass> jarClasses = klazz.allSuperClassesAndInterfaces();
+        Set<JarClass> jarClasses = parentClazz.allSuperClassesAndInterfaces();
         long count = jarClasses.stream()
                 .filter(x -> x.hasMethod(method))
                 .count();
@@ -151,7 +225,9 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
 
     private boolean shouldIncludeMethod() {
         for (Class<?> paramType : method.getParameterTypes()) {
-            if (!JarClass.hasSafeName(paramType)) return false;
+            if (!JarClass.hasSafeName(paramType)) {
+                return false;
+            }
         }
 
         return JarClass.hasSafeName(method.getReturnType());

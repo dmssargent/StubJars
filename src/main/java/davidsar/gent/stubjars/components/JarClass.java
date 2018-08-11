@@ -13,8 +13,19 @@
 
 package davidsar.gent.stubjars.components;
 
+import static davidsar.gent.stubjars.components.writer.Constants.EMPTY_STRING;
+import static davidsar.gent.stubjars.components.writer.Constants.INDENT;
+import static davidsar.gent.stubjars.components.writer.Constants.NEW_LINE_CHARACTER;
+import static davidsar.gent.stubjars.components.writer.Constants.SPACE;
+
 import davidsar.gent.stubjars.Utils;
-import davidsar.gent.stubjars.components.writer.Constants;
+import davidsar.gent.stubjars.components.expressions.ClassHeaderExpression;
+import davidsar.gent.stubjars.components.expressions.CompileableExpression;
+import davidsar.gent.stubjars.components.expressions.EnumMembers;
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
+import davidsar.gent.stubjars.components.expressions.TypeExpression;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -23,11 +34,13 @@ import org.slf4j.LoggerFactory;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -35,21 +48,29 @@ import java.util.stream.Stream;
 
 public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private static final Logger log = LoggerFactory.getLogger(JarClass.class);
-    private final static Pattern classEntryPatternToBeStripped = Pattern.compile("\\.class$");
+    private static final Pattern classEntryPatternToBeStripped = Pattern.compile("\\.class$");
     private static Map<Class<?>, JarClass<?>> classToJarClassMap;
-    private final Class<T> klazz;
+    private final Class<T> clazz;
     private Set<JarConstructor> constructors;
     private Set<JarMethod> methods;
     private Set<JarClass<?>> innerClasses;
 
+    /**
+     * Represents a {@link Class} for in StubJars.
+     *
+     * @param classLoader a {@link ClassLoader} that has access to the given entry
+     * @param entryName   a file path representative of request {@code Class} with the full path
+     * @throws ClassNotFoundException if the given {@code classLoader} doesn't have access to
+     *                                the {@code Class} derived from the {@code entryName}
+     */
     public JarClass(@NotNull ClassLoader classLoader, @NotNull String entryName) throws ClassNotFoundException {
         String convertedName = convertEntryNameToClassName(entryName);
         //noinspection unchecked
-        klazz = (Class<T>) Class.forName(convertedName, false, classLoader);
+        clazz = (Class<T>) Class.forName(convertedName, false, classLoader);
     }
 
-    private JarClass(@NotNull Class<T> klazz) {
-        this.klazz = klazz;
+    private JarClass(@NotNull Class<T> clazz) {
+        this.clazz = clazz;
     }
 
     public static void loadClassToJarClassMap(@NotNull Map<Class<?>, @NotNull JarClass<?>> map) {
@@ -57,131 +78,149 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     }
 
     @NotNull
-    static <T> JarClass<?> forClass(@NotNull Class<T> klazz) {
-        if (classToJarClassMap != null && classToJarClassMap.containsKey(klazz)) return classToJarClassMap.get(klazz);
+    static <T> JarClass<?> forClass(@NotNull Class<T> clazz) {
+        if (classToJarClassMap != null && classToJarClassMap.containsKey(clazz)) {
+            return classToJarClassMap.get(clazz);
+        }
 
-        return new JarClass<>(klazz);
+        return new JarClass<>(clazz);
     }
 
     @NotNull
     private static String convertEntryNameToClassName(@NotNull String entryName) {
         Matcher matcher = classEntryPatternToBeStripped.matcher(entryName);
-        if (matcher.find()) entryName = matcher.replaceAll(Constants.EMPTY_STRING);
+        if (matcher.find()) {
+            entryName = matcher.replaceAll(EMPTY_STRING);
+        }
         return entryName.replace('/', '.');
     }
 
-    boolean isEnum() {
-        return klazz.isEnum();
+    public boolean isEnum() {
+        return clazz.isEnum();
     }
 
     @NotNull
-    public Class<T> getKlazz() {
-        return klazz;
+    public Class<T> getClazz() {
+        return clazz;
     }
 
     public boolean isInnerClass() {
-        return klazz.getDeclaringClass() != null || klazz.isLocalClass() || klazz.isAnonymousClass();
+        return clazz.getDeclaringClass() != null || clazz.isLocalClass() || clazz.isAnonymousClass();
     }
 
     @NotNull
     public String name() {
-        return klazz.getSimpleName();
+        return clazz.getSimpleName();
     }
 
     static boolean hasSafeName(@NotNull Class<?> klazz) {
         JarClass jarClass = JarClass.forClass(klazz);
-        return !jarClass.klazz.isSynthetic() && !jarClass.klazz.isAnonymousClass();
+        return !jarClass.clazz.isSynthetic() && !jarClass.clazz.isAnonymousClass();
     }
 
-    @NotNull
-    static String safeFullNameForClass(@NotNull Class<?> klazz) {
-        if (!hasSafeName(klazz))
+    static TypeExpression safeFullNameForClass(@NotNull Class<?> clazz) {
+        if (!hasSafeName(clazz)) {
             throw new IllegalArgumentException("Class does not have safe name.");
-        if (klazz.isArray())
-            return safeFullNameForClass(klazz.getComponentType()) + "[]";
-        String s = klazz.getName().replaceAll("\\$\\d*", ".");
-        if (s.endsWith("."))
+        }
+
+        if (clazz.isArray()) {
+            return new JarType.ArrayType(clazz);
+        }
+
+        String s = clazz.getName().replaceAll("\\$\\d*", ".");
+        if (s.endsWith(".")) {
             throw new IllegalArgumentException("Class does not have safe name.");
-        return s;
+        }
+
+        return Expressions.forType(clazz, Expressions.fromString(s));
     }
 
     @NotNull
     public String packageName() {
-        return klazz.getPackage().getName();
+        return clazz.getPackage().getName();
     }
 
     @Nullable
-    public Class<?> extendsClass() {
-        Class<?> superclass = klazz.getSuperclass();
+    Class<?> extendsClass() {
+        Class<?> superclass = clazz.getSuperclass();
         return superclass == Object.class ? null : superclass;
     }
 
     @NotNull
     private Class<?>[] implementsInterfaces() {
-        return klazz.getInterfaces();
+        return clazz.getInterfaces();
     }
 
     @NotNull
     private Type[] implementsGenericInterfaces() {
-        return klazz.getGenericInterfaces();
+        return clazz.getGenericInterfaces();
     }
 
-    boolean isInterface() {
-        return klazz.isInterface();
+    public boolean isInterface() {
+        return clazz.isInterface();
     }
 
-    boolean isAnnotation() {
-        return klazz.isAnnotation();
+    public boolean isAnnotation() {
+        return clazz.isAnnotation();
     }
 
     @Override
     protected int getModifiers() {
-        return klazz.getModifiers();
+        return clazz.getModifiers();
     }
 
     private Set<JarField> fields() {
-        return Arrays.stream(klazz.getDeclaredFields())
-                .map(field -> new JarField(this, field))
-                .filter(field -> field.security() != SecurityModifier.PRIVATE)
-                .collect(Collectors.toSet());
+        return Arrays.stream(clazz.getDeclaredFields())
+            .map(field -> new JarField(this, field))
+            .filter(field -> field.security() != SecurityModifier.PRIVATE)
+            .collect(Collectors.toSet());
     }
 
+    /**
+     * Returns the {@link Set} of inner classes that StubJars considers a possible public facing API
+     * or are required for the resulting Java code to be valid.
+     *
+     * @return the {@code Set} of inner classes
+     */
     @NotNull
     public Set<JarClass<?>> innerClasses() {
         if (innerClasses == null) {
-            innerClasses = Arrays.stream(klazz.getDeclaredClasses())
-                    .filter(klazz -> !klazz.isLocalClass())
-                    .filter(klazz -> !klazz.isAnonymousClass())
-                    .map(JarClass::forClass).collect(Collectors.toSet());
+            innerClasses = Arrays.stream(clazz.getDeclaredClasses())
+                .filter(klazz -> !klazz.isLocalClass())
+                .filter(klazz -> !klazz.isAnonymousClass())
+                .map(JarClass::forClass).collect(Collectors.toSet());
         }
         return innerClasses;
     }
 
     @NotNull
     private Set<JarMethod> methods() {
+        if (name().equals("FieldNamingPolicy")) {
+            log.debug("");
+        }
         if (methods == null) {
-            methods = Arrays.stream(klazz.getDeclaredMethods())
-                    .map(method1 -> new JarMethod(this, method1))
-                    .filter(method -> method.security() != SecurityModifier.PRIVATE)
-                    .filter(method -> !method.isSynthetic())
-                    .filter(JarMethod::shouldIncludeStaticMethod)
-                    .collect(Collectors.toSet());
+            methods = Arrays.stream(clazz.getDeclaredMethods())
+                .map(method -> new JarMethod(this, method))
+                .filter(method -> method.security() != SecurityModifier.PRIVATE)
+                .filter(method -> !method.isSynthetic())
+                .filter(JarMethod::shouldIncludeStaticMethod)
+                .collect(Collectors.toSet());
         }
         return methods;
     }
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof JarClass && klazz.equals(((JarClass) o).klazz);
+        return o instanceof JarClass && clazz.equals(((JarClass) o).clazz);
     }
 
     @Override
     public int hashCode() {
-        return klazz.hashCode();
+        return clazz.hashCode();
     }
 
     @NotNull Set<JarClass> allSuperClassesAndInterfaces() {
-        return allSuperClassesAndInterfaces(klazz).stream().map(JarClass::forClass).collect(Collectors.toSet());
+        return allSuperClassesAndInterfaces(clazz).stream().map(JarClass::forClass).collect(Collectors.toSet());
     }
 
     @NotNull
@@ -189,8 +228,8 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         Set<Class<?>> superClasses = allSuperClasses(klazz, new HashSet<>());
         Set<Class<?>> interfaces = new HashSet<>();
         Collections.addAll(interfaces, klazz.getInterfaces());
-        for (Class<?> kInterface : superClasses) {
-            Collections.addAll(interfaces, kInterface.getInterfaces());
+        for (Class<?> superClazz : superClasses) {
+            Collections.addAll(interfaces, superClazz.getInterfaces());
         }
 
         superClasses.addAll(interfaces);
@@ -200,15 +239,16 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     @NotNull
     private static Set<Class<?>> allSuperClasses(@NotNull Class<?> klazz, @NotNull Set<Class<?>> superClasses) {
         Class<?> superClass = klazz.getSuperclass();
-        if (superClass == null)
+        if (superClass == null) {
             return superClasses;
+        }
         superClasses.add(superClass);
         return allSuperClasses(superClass, superClasses);
     }
 
     boolean hasMethod(@NotNull Method method) {
         try {
-            klazz.getDeclaredMethod(method.getName(), method.getParameterTypes());
+            clazz.getDeclaredMethod(method.getName(), method.getParameterTypes());
             return true;
         } catch (NoSuchMethodException e) {
             return false;
@@ -217,14 +257,14 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     @NotNull
     private Type extendsGenericClass() {
-        return klazz.getGenericSuperclass();
+        return clazz.getGenericSuperclass();
     }
 
     @NotNull Set<JarConstructor> constructors() {
         //noinspection unchecked
         if (constructors == null) {
             //noinspection unchecked
-            constructors = Arrays.stream(klazz.getDeclaredConstructors())
+            constructors = Arrays.stream(clazz.getDeclaredConstructors())
                     .map(x -> new JarConstructor(this, x))
                     .filter(JarConstructor::shouldIncludeCotr)
                     .collect(Collectors.toSet());
@@ -232,8 +272,10 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             constructors.stream()
                     .filter(JarConstructor::canRewriteConstructorParams).findAny()
                     .ifPresent(jarConstructor -> constructors = Stream.concat(
-                            constructors.stream()
-                                    .filter(cotr -> !(cotr.canRewriteConstructorParams() || cotr.parameters().length == 0)),
+                        constructors.stream()
+                            .filter(constructor -> !(constructor.canRewriteConstructorParams()
+                                || constructor.parameters().length == 0)
+                            ),
                             Stream.of(jarConstructor)
                     ).collect(Collectors.toSet()));
         }
@@ -250,36 +292,35 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private Expression compileClass(boolean isEnumConstant, String enumName) {
         final String methods = compileMethods(isEnumConstant);
         final String fields = compileFields();
-        final Expression klazzHeader;
-        final String cotrs;
+        final Expression clazzHeader;
+        final String constructors;
         final String innerClasses;
         if (isEnumConstant) {
-            cotrs = Constants.EMPTY_STRING;
-            innerClasses = Constants.EMPTY_STRING;
-            klazzHeader = Expression.spaceAfter(enumName);
+            constructors = EMPTY_STRING;
+            innerClasses = EMPTY_STRING;
+            clazzHeader = Expressions.toSpaceAfter(enumName);
         } else {
-            cotrs = compileCotr();
+            constructors = compileConstructors();
             innerClasses = compileInnerClasses();
-            klazzHeader = compileHeader();
+            clazzHeader = compileHeader();
         }
 
         // Enums need to be handled quite a bit differently, but we also need to check if we are working on
         // an enum constant to prevent infinite recursion
         if (isEnum() && !isEnumConstant) {
-            Expression enumMembers = Expression.StringExpression.EMPTY.statement();
-            //noinspection unchecked
-            Enum[] invokedExpression = getEnumConstants();
+            Expression enumMembers = StringExpression.EMPTY.asStatement();
+            Enum<?>[] invokedExpression = getEnumConstants();
 
             if (invokedExpression != null) {
                 enumMembers = new EnumMembers(Arrays.stream(invokedExpression)
                         .map(member -> JarClass.forClass(member.getClass()).compileClass(true, member.name()))
-                        .toArray(Expression[]::new)).statement();
+                    .toArray(Expression[]::new)).asStatement();
             }
 
-            return Expression.of(Expression.of(klazzHeader), Expression.block(enumMembers.toString(), fields, methods, innerClasses));
+            return Expressions.of(Expressions.of(clazzHeader), Expression.blockWith(enumMembers.toString(), fields, methods, innerClasses));
         }
 
-        return Expression.of(Expression.of(klazzHeader), Expression.block(fields, cotrs, methods, innerClasses));
+        return Expressions.of(Expressions.of(clazzHeader), Expression.blockWith(fields, constructors, methods, innerClasses));
     }
 
     @NotNull
@@ -294,23 +335,24 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                             superClazz.getDeclaredField(field.name());
                             return false;
                         } catch (NoSuchFieldException ignored) {
-
+                            log.debug("field \"{}\" does not exist on target class: {}", field.name(), getClazz().getName());
                         }
                     }
 
                     return true;
                 })
-                .map(field -> Constants.INDENT + field.compileToExpression() + Constants.NEW_LINE_CHARACTER)
+            .map(field -> INDENT + field.compileToExpression() + NEW_LINE_CHARACTER)
                 .collect(Collectors.joining());
     }
 
     @NotNull
     private String compileMethods(boolean isEnumConstant) {
-        String methods = this.methods().stream()
-                .map(method -> method.compileToString(isEnumConstant).toString())
-                .flatMap(x -> Arrays.stream(x.split(Constants.NEW_LINE_CHARACTER))).collect(Collectors.joining(System.lineSeparator() + Constants.INDENT));
+        String methods = methods().stream()
+            .map(method -> method.compileToString(isEnumConstant).toString())
+            .flatMap(x -> Arrays.stream(x.split(NEW_LINE_CHARACTER)))
+            .collect(Collectors.joining(System.lineSeparator() + INDENT));
 
-        if (methods.endsWith(Constants.NEW_LINE_CHARACTER)) {
+        if (methods.endsWith(NEW_LINE_CHARACTER)) {
             methods = methods.substring(0, methods.length() - 1);
         }
 
@@ -320,201 +362,131 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     @NotNull
     private String compileInnerClasses() {
         Set<JarClass<?>> innerClasses = innerClasses();
-        if (innerClasses.size() == 0) return Constants.EMPTY_STRING;
+        if (innerClasses.size() == 0) {
+            return EMPTY_STRING;
+        }
+
         return innerClasses.stream()
-                .map(x -> (Constants.NEW_LINE_CHARACTER + x.compileToExpression() + Constants.NEW_LINE_CHARACTER).split(Constants.NEW_LINE_CHARACTER))
-                .flatMap(Arrays::stream)
-                .collect(Collectors.joining(System.lineSeparator() + Constants.INDENT));
+            .map(x ->
+                (NEW_LINE_CHARACTER + x.compileToExpression() + NEW_LINE_CHARACTER)
+                    .split(NEW_LINE_CHARACTER)
+            ).flatMap(Arrays::stream)
+            .collect(Collectors.joining(System.lineSeparator() + INDENT));
     }
 
     @NotNull
-    private String compileCotr() {
+    private String compileConstructors() {
         // Interfaces don't have constructors
-        if (isInterface()) return Constants.EMPTY_STRING;
+        if (isInterface()) {
+            return EMPTY_STRING;
+        }
+
         return constructors().stream()
                 .map(JarConstructor::compileToExpression)
-                .flatMap(cotr -> Arrays.stream(cotr.toString().split(Constants.NEW_LINE_CHARACTER)))
-                .map(cotr -> Constants.INDENT + cotr)
-                .collect(Collectors.joining(Constants.NEW_LINE_CHARACTER));
+            .flatMap(c -> Arrays.stream(c.toString().split(NEW_LINE_CHARACTER)))
+            .map(constructor -> INDENT + constructor)
+            .collect(Collectors.joining(NEW_LINE_CHARACTER));
     }
 
     @NotNull
     private Expression compileHeader() {
-        return new ClassHeaderExpression();
+        return new ClassHeaderExpression(this);
     }
 
     @NotNull
-    private String compileHeaderImplements() {
-        StringBuilder implementsS = new StringBuilder();
-        if (implementsInterfaces().length > 0 && !(isAnnotation() && implementsInterfaces().length == 1)) {
-            implementsS = klazz.isInterface() ? new StringBuilder("extends ") : new StringBuilder("implements ");
-            implementsS.append(Utils.arrayToCommaSeparatedList(implementsGenericInterfaces(), x -> {
-                if (x.equals(Annotation.class)) return null;
+    public Expression compileHeaderImplements() {
+        Expression implementsS = StringExpression.EMPTY;
+        if (implementsInterfaces().length > 0
+            && !(isAnnotation()
+            && implementsInterfaces().length == 1)) {
+            implementsS = clazz.isInterface()
+                ? Expressions.fromString("extends") : Expressions.fromString("implements");
+            implementsS = Expressions.of(
+                implementsS.asSpaceAfter(),
+                Utils.arrayToListExpression(implementsGenericInterfaces(), x -> {
+                    if (x.equals(Annotation.class)) {
+                        return null;
+                    }
 
-                return JarType.toString(x);
-            }));
-            implementsS.append(Constants.SPACE);
+                    return Expressions.fromString(JarType.toString(x));
+                }),
+                StringExpression.SPACE
+            );
         }
-        return implementsS.toString();
+
+        return implementsS;
     }
 
     @NotNull
-    private String compileHeaderExtends() {
+    public String compileHeaderExtends() {
         final String extendsS;
         Class<?> extendsClazz = extendsClass();
         if (extendsClazz != null && !(extendsClazz.equals(Enum.class))) {
-            extendsS = "extends " + JarType.toString(extendsGenericClass()) + Constants.SPACE;
+            extendsS = "extends " + JarType.toString(extendsGenericClass()) + SPACE;
         } else {
-            extendsS = Constants.EMPTY_STRING;
+            extendsS = EMPTY_STRING;
         }
         return extendsS;
     }
 
-    private String compileTypeParameters() {
-        final String genericS;
-        TypeVariable<? extends Class<?>>[] typeParameters = getKlazz().getTypeParameters();
-        genericS = JarType.convertTypeParametersToString(typeParameters);
-        return genericS;
+    public String compileTypeParameters() {
+        return JarType.convertTypeParametersToString(getClazz().getTypeParameters());
     }
 
     @NotNull
-    private Expression compileHeaderAnnotation() {
+    public Expression compileHeaderAnnotation() {
         final Expression annotationS;
-        if (isAnnotation() && getKlazz().isAnnotationPresent(Retention.class)) {
-            RetentionPolicy retentionPolicy = getKlazz().getAnnotation(Retention.class).value();
-            annotationS = Expression.of(
-                    Expression.StringExpression.AT,
-                    Expression.forType(Retention.class, JarClass.safeFullNameForClass(Retention.class)),
-                    Expression.parenthetical(Expression.of(
-                            Expression.of(safeFullNameForClass(RetentionPolicy.class)),
-                            Expression.StringExpression.PERIOD,
-                            Expression.of(retentionPolicy.name()))),
-                    Expression.StringExpression.SPACE
+        if (isAnnotation() && getClazz().isAnnotationPresent(Retention.class)) {
+            RetentionPolicy retentionPolicy = getClazz().getAnnotation(Retention.class).value();
+            annotationS = Expressions.of(
+                StringExpression.AT,
+                Expressions.forType(Retention.class, JarClass.safeFullNameForClass(Retention.class)),
+                Expressions.asParenthetical(Expressions.of(
+                    Expressions.of(safeFullNameForClass(RetentionPolicy.class)),
+                    StringExpression.PERIOD,
+                    Expressions.fromString(retentionPolicy.name()))),
+                StringExpression.SPACE
             );
         } else {
-            annotationS = Expression.StringExpression.EMPTY;
+            annotationS = StringExpression.EMPTY;
         }
         return annotationS;
     }
 
     @NotNull
-    private static String typeString(@NotNull JarClass<?> klazz, boolean enumTypeClass) {
+    public static Expression typeString(@NotNull JarClass<?> clazz, boolean enumTypeClass) {
         final String typeS;
-        if (klazz.isAnnotation()) {
-            typeS = "@interface ";
-        } else if (klazz.isInterface()) {
-            typeS = "interface ";
+        if (clazz.isAnnotation()) {
+            typeS = "@interface";
+        } else if (clazz.isInterface()) {
+            typeS = "interface";
         } else if (enumTypeClass) {
-            typeS = "enum ";
+            typeS = "enum";
         } else {
-            typeS = "class ";
+            typeS = "class";
         }
-        return typeS;
+        return Expressions.toSpaceAfter(typeS);
     }
 
-    private <ENUM_CLASS extends Enum> ENUM_CLASS[] getEnumConstants() {
-        if (!isEnum())
+    private <E extends Enum<?>> E[] getEnumConstants() {
+        if (!isEnum()) {
             throw new IllegalArgumentException("Not an enum");
+        }
+
         //noinspection unchecked
-        return JarClass.getEnumConstantsFor((Class<ENUM_CLASS>) this.klazz);
+        return JarClass.getEnumConstantsFor((Class<E>) this.clazz);
     }
 
     @Nullable
-    static <T extends Enum> T[] getEnumConstantsFor(@NotNull Class<T> klazz) {
-        T[] invokedExpression = null;
+    static <T extends Enum> T[] getEnumConstantsFor(@NotNull Class<T> clazz) {
         try {
-            Method values = klazz.getMethod("values");
-            values.setAccessible(true);
-            //noinspection unchecked
-            invokedExpression = (T[]) values.invoke(null);
-        } catch (NoSuchMethodException | IllegalAccessException | ExceptionInInitializerError | NoClassDefFoundError e) {
-            log.warn("Failed to load enum \"{}\"; reason: access encountered {}", klazz.getName(), e.toString());
-        } catch (InvocationTargetException ex) {
-            log.warn("Failed to load enum \"{}\"; reason: loading encountered {}", klazz.getName(), ex.getTargetException().toString());
-        }
+            return clazz.getEnumConstants();
+        } catch (ExceptionInInitializerError | NoClassDefFoundError ex) {
+            log.warn("Failed to load enum \"{}\"; reason: access encountered initializer error {}",
+                clazz.getName(), (ex.getCause() == null ? ex : ex.getCause()).toString()
+            );
 
-        return invokedExpression;
-    }
-
-    private static class EnumMembers extends ListExpression {
-        EnumMembers(Expression[] expressions) {
-            super(expressions, ListExpression.DELIMITER_COMMA_NEW_LINE);
-        }
-    }
-
-    private static class ListExpression extends Expression {
-        static Expression[] DELIMITER_COMMA_NEW_LINE = new Expression[]{StringExpression.COMMA, StringExpression.NEW_LINE};
-        public static Expression[] DELIMITER_COMMA_SPACE = new Expression[]{StringExpression.COMMA, StringExpression.SPACE};
-        private final Expression[] expressions;
-        private final Expression[] delimiters;
-        private List<Expression> children;
-
-        private ListExpression(Expression[] expressions, Expression[] delimiters) {
-            this.expressions = expressions;
-            this.delimiters = delimiters;
-        }
-
-        @Override
-        public boolean hasChildren() {
-            return true;
-        }
-
-        @Override
-        public List<Expression> children() {
-            if (children == null) {
-                children = buildChildrenList();
-            }
-
-            return children;
-        }
-
-        @NotNull
-        private List<Expression> buildChildrenList() {
-            List<Expression> expressionChildren = new ArrayList<>(expressions.length * (delimiters.length + 1) - delimiters.length);
-            for (int iExpression = 0; iExpression < expressions.length; iExpression++) {
-                expressionChildren.add(expressions[iExpression]);
-                if (iExpression < expressions.length - 1) {
-                    expressionChildren.addAll(Arrays.asList(delimiters));
-                }
-            }
-
-            return expressionChildren;
-        }
-    }
-
-    private class ClassHeaderExpression extends Expression {
-        private final Expression annotationS;
-        private final Expression security;
-        private final Expression staticS;
-        private final Expression abstractS;
-        private final Expression finalS;
-        private final Expression typeS;
-        private final Expression nameS;
-        private final Expression genericS;
-        private final Expression extendsS;
-        private final Expression implementsS;
-
-        private ClassHeaderExpression() {
-            this.annotationS = compileHeaderAnnotation();
-            this.security = security().expression();
-            this.finalS = Expression.whenWithSpace(isFinal() && !isEnum(), "final");
-            this.staticS = Expression.whenWithSpace(isStatic() && !isEnum(), "static");
-            this.abstractS = Expression.whenWithSpace(isAbstract() && !isEnum() && !isAnnotation(), "abstract");
-            this.typeS = Expression.forType(getKlazz(), typeString(JarClass.this, isEnum()));
-            this.genericS = Expression.of(compileTypeParameters());
-            this.nameS = Expression.of(name());
-            this.extendsS = Expression.of(compileHeaderExtends());
-            this.implementsS = Expression.of(compileHeaderImplements());
-        }
-
-        @Override
-        public boolean hasChildren() {
-            return true;
-        }
-
-        @Override
-        public List<Expression> children() {
-            return Arrays.asList(annotationS, security, staticS, abstractS, finalS, typeS, nameS, genericS, extendsS, implementsS);
+            return null;
         }
     }
 }

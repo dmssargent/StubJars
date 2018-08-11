@@ -13,37 +13,36 @@
 
 package davidsar.gent.stubjars;
 
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.function.Function;
 
 public class Utils {
     @NotNull
+    @Deprecated
     public static <T> String arrayToCommaSeparatedList(T[] elements, Function<T, String> func) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < elements.length; ++i) {
             String value = func.apply(elements[i]);
-            if (value == null) continue;
+            if (value == null) {
+                continue;
+            }
             builder.append(value);
-            if (i < elements.length - 1 && !(i == elements.length - 2 && func.apply(elements[i + 1]) == null)) builder.append(", ");
+            if (i < elements.length - 1 && !(i == elements.length - 2 && func.apply(elements[i + 1]) == null)) {
+                builder.append(", ");
+            }
         }
 
         return builder.toString();
     }
 
     @NotNull
-    public static <T> String arrayToCommaSeparatedList(T element, int n, Function<T, String> func) {
-        return arrayToCommaSeparatedList(func.apply(element), n);
-    }
-
-    @NotNull
-    private static <T> String arrayToCommaSeparatedList(String element, int n) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < n; ++i) {
-            builder.append(element);
-            if (i < n - 1) builder.append(", ");
-        }
-
-        return builder.toString();
+    public static <T> Expression arrayToListExpression(T[] elements, Function<T, Expression> function) {
+        return Expressions.makeListFrom(
+            Arrays.stream(elements).map(function).toArray(Expression[]::new)
+        );
     }
 }

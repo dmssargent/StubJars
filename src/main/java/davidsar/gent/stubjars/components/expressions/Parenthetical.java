@@ -11,8 +11,25 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package davidsar.gent.stubjars.components;
+package davidsar.gent.stubjars.components.expressions;
 
-interface CompileableExpression {
-    Expression compileToExpression();
+import java.util.Arrays;
+import java.util.List;
+
+class Parenthetical extends Expression {
+    private final Expression innerExpression;
+
+    Parenthetical(Expression innerExpression) {
+        this.innerExpression = innerExpression;
+    }
+
+    @Override
+    public boolean hasChildren() {
+        return true;
+    }
+
+    @Override
+    public List<Expression> children() {
+        return Arrays.asList(StringExpression.LEFT_PAREN, innerExpression, StringExpression.RIGHT_PAREN);
+    }
 }

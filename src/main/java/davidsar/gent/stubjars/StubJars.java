@@ -19,11 +19,12 @@ import davidsar.gent.stubjars.components.writer.JavaClassWriter;
 import davidsar.gent.stubjars.components.writer.Writer;
 import davidsar.gent.stubjars.components.writer.WriterThread;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,24 +32,26 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 /**
- * The main class for StubJars
+ * The main class for StubJars.
  *
  * @see #builder() to create an instance of {@link StubJars}
  */
 public class StubJars {
-    private final ConcurrentMap<Class<?>, JarClass<?>> klazzes;
+    private static final Logger log = LoggerFactory.getLogger(StubJars.class);
+    private final ConcurrentMap<Class<?>, JarClass<?>> clazzes;
     private List<Package> packages;
-    private final File SOURCE_DIR = new File("stub_src");
-    private final File BUILD_DIR = new File(SOURCE_DIR, "build");
-    private final File CLASSES_DIR = new File(BUILD_DIR, "classes");
-    private final File SOURCES_LIST_FILE = new File(SOURCE_DIR, "sources.list");
+    private static final File SOURCE_DIR = new File("stub_src");
+    private static final File BUILD_DIR = new File(SOURCE_DIR, "build");
+    private static final File CLASSES_DIR = new File(BUILD_DIR, "classes");
+    private static final File SOURCES_LIST_FILE = new File(SOURCE_DIR, "sources.list");
 
-    private StubJars(@NotNull ConcurrentMap<Class<?>, JarClass<?>> klazzes) {
-        this.klazzes = klazzes;
+
+    private StubJars(@NotNull ConcurrentMap<Class<?>, JarClass<?>> clazzes) {
+        this.clazzes = clazzes;
     }
 
     /**
-     * Returns a new StubJars builder to create a new StubJars instance
+     * Returns a new StubJars builder to create a new StubJars instance.
      *
      * @return a new StubJars builder
      */
@@ -58,7 +61,9 @@ public class StubJars {
     }
 
     void createDirectoryTree() {
-        if (packages == null) buildPackagesList();
+        if (packages == null) {
+            buildPackagesList();
+        }
         SOURCE_DIR.mkdirs();
         createBuildDir();
         for (Package e : packages) {
@@ -68,10 +73,11 @@ public class StubJars {
     }
 
     private void buildPackagesList() {
-        packages = new LinkedList<>();
-        for (Class klazz : klazzes.keySet()) {
-            if (!packages.contains(klazz.getPackage()))
-                packages.add(klazz.getPackage());
+        packages = new ArrayList<>();
+        for (Class clazz : clazzes.keySet()) {
+            if (!packages.contains(clazz.getPackage())) {
+                packages.add(clazz.getPackage());
+            }
         }
     }
 
@@ -79,14 +85,19 @@ public class StubJars {
         WriterThread writerThread = new WriterThread();
         writerThread.start();
         StringBuilder sourceFiles = new StringBuilder();
-        for (JarClass e : klazzes.values()) {
-            if (e.isInnerClass() || e.name().isEmpty() || e.security() == SecurityModifier.PRIVATE)
+        for (JarClass e : clazzes.values()) {
+            if (e.isInnerClass() || e.name().isEmpty() || e.security() == SecurityModifier.PRIVATE) {
                 continue;
+            }
+
             // this breaks compilation (currently)
             // todo: make unneeded
-            if (e.getKlazz().getName().equals(Enum.class.getName()))
+            if (e.getClazz().getName().equals(Enum.class.getName())) {
                 continue;
-            File file = new File(SOURCE_DIR, e.getKlazz().getName().replace('.', File.separatorChar) + ".java");
+            }
+
+            File file = new File(SOURCE_DIR, e.getClazz().getName()
+                .replace('.', File.separatorChar) + ".java");
             JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
             sourceFiles.append(file.getAbsolutePath()).append(System.lineSeparator());
             writer.write();
@@ -105,7 +116,7 @@ public class StubJars {
             sourcesList.write(sourceFiles.toString());
             writerThread.join();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to write files", e);
         }
     }
 
@@ -119,7 +130,7 @@ public class StubJars {
     }
 
     /**
-     * Creates new {@link StubJars} instances
+     * Creates new {@link StubJars} instances.
      */
     static class Builder {
         private final List<JarFile> jars;
@@ -131,7 +142,7 @@ public class StubJars {
         }
 
         /**
-         * Add a JAR file for {@link StubJars} to manage
+         * Add a JAR file for {@link StubJars} to manage.
          *
          * @param jar a {@link File} representing a JAR file
          */
@@ -140,7 +151,7 @@ public class StubJars {
         }
 
         /**
-         * Add a JAR file for {@link StubJars}, that provides classpath info
+         * Add a JAR file for {@link StubJars}, that provides classpath info.
          *
          * @param jar a {@link File} representing a JAR file
          */
@@ -149,7 +160,7 @@ public class StubJars {
         }
 
         /**
-         * Adds JAR files for {@link StubJars} to manage
+         * Adds JAR files for {@link StubJars} to manage.
          *
          * @param jars the {@link File}s representing a JAR files
          */
@@ -177,7 +188,7 @@ public class StubJars {
                 }
 
                 ConcurrentMap<Class<?>, JarClass<?>> klazzesFromJar = classes.stream()
-                        .collect(Collectors.toConcurrentMap(JarClass::getKlazz, a -> a));
+                    .collect(Collectors.toConcurrentMap(JarClass::getClazz, a -> a));
                 klazzes.putAll(klazzesFromJar);
             }
 

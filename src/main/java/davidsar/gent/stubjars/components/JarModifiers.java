@@ -17,6 +17,12 @@ import java.lang.reflect.Modifier;
 
 public abstract class JarModifiers {
     protected abstract int getModifiers();
+
+    /**
+     * Returns the {@link SecurityModifier} for the representative type.
+     *
+     * @return the access permission of the type
+     */
     public SecurityModifier security() {
         int modifiers = getModifiers();
         if (Modifier.isPrivate(modifiers)) {
@@ -30,15 +36,15 @@ public abstract class JarModifiers {
         }
     }
 
-    boolean isFinal() {
+    public boolean isFinal() {
         return Modifier.isFinal(getModifiers());
     }
 
-    boolean isStatic() {
+    public boolean isStatic() {
         return Modifier.isStatic(getModifiers());
     }
 
-    boolean isAbstract() {
+    public boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
     }
 

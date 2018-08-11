@@ -11,12 +11,10 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package davidsar.gent.stubjars;
+package davidsar.gent.stubjars.components.expressions;
 
-public class Preconditions {
-//    @Contract("null -> fail")
-//    @Deprecated
-//    public static void checkNotNull(Object o) {
-//        Objects.requireNonNull(o);
-//    }
+public class EnumMembers extends ListExpression {
+    public EnumMembers(Expression[] expressions) {
+        super(expressions, ListExpression.DELIMITER_COMMA_NEW_LINE);
+    }
 }

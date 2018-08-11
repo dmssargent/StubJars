@@ -16,6 +16,8 @@ package davidsar.gent.stubjars.components.writer;
 import java.util.concurrent.ArrayBlockingQueue;
 
 /**
+ * A specialized {@link Thread} for operations with a {@link Writer}.
+ *
  * @see Writer
  */
 public class WriterThread extends Thread implements Runnable {
@@ -40,8 +42,15 @@ public class WriterThread extends Thread implements Runnable {
         }
     }
 
+    /**
+     * Waits for all of the pending I/O operations to complete.
+     *
+     * @throws InterruptedException if the current {@link Thread} encounters an I/O exception
+     */
     public void waitForCompletion() throws InterruptedException {
-        if (runningThread == null) return;
+        if (runningThread == null) {
+            return;
+        }
         runningThread.join();
     }
 
@@ -54,7 +63,7 @@ public class WriterThread extends Thread implements Runnable {
                 return;
             }
 
-            writer._threadWrite();
+            writer.threadWrite();
         }
     }
 

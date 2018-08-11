@@ -13,22 +13,33 @@
 
 package davidsar.gent.stubjars.components.writer;
 
-import davidsar.gent.stubjars.Preconditions;
-import davidsar.gent.stubjars.components.Expression;
 import davidsar.gent.stubjars.components.JarClass;
+import davidsar.gent.stubjars.components.expressions.Expression;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.Objects;
 
 public class JavaClassWriter extends Writer {
     private final JarClass<?> klazz;
     private String compiledString;
 
-    public JavaClassWriter(@NotNull final File file, @NotNull final JarClass<?> klazz, @NotNull WriterThread writerThread) {
-        super(file, writerThread);
-        Preconditions.checkNotNull(file);
-        Preconditions.checkNotNull(klazz);
-        this.klazz = klazz;
+    /**
+     * Builds a new {@link JavaClassWriter} for the given file associated with the given
+     * {@link JarClass}. The resulting {@code JavaClassWriter} will be bound to the given
+     * {@link WriterThread}.
+     *
+     * @param file         the file to write to
+     * @param clazz        the representative class
+     * @param writerThread the thread to use for Writing
+     */
+    public JavaClassWriter(@NotNull final File file, @NotNull final JarClass<?> clazz,
+                           @NotNull WriterThread writerThread) {
+        super(
+            Objects.requireNonNull(file, "file is null"),
+            Objects.requireNonNull(writerThread, "writer thread is null")
+        );
+        this.klazz = Objects.requireNonNull(clazz, "class is null");
     }
 
     @NotNull
@@ -55,14 +66,14 @@ public class JavaClassWriter extends Writer {
     }
 
     /**
-     * Produces a String containing a source code version of the package name declaration
+     * Produces a String containing a source code version of the package name declaration.
      *
-     * @param klazz the {@link JarClass} to create the declaration for
+     * @param clazz the {@link JarClass} to create the declaration for
      * @return source code version of the package name declaration
      */
     @NotNull
-    private static String compilePackageStatement(@NotNull final JarClass<?> klazz) {
-        return String.format("package %s;\n", klazz.packageName());
+    private static String compilePackageStatement(@NotNull final JarClass<?> clazz) {
+        return String.format("package %s;\n", clazz.packageName());
     }
 
     public void write() {

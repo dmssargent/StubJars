@@ -23,6 +23,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Objects;
 
 public class Writer {
     private static final Logger log = LoggerFactory.getLogger(Writer.class);
@@ -31,15 +32,15 @@ public class Writer {
     private final WriterThread writerThread;
 
     /**
-     *
-     * @param file the {@link File} to eventually write data to
+     * Generates a Writer bound to a {@link File}.
+     * @param file the {@code File} to eventually write data to
      */
     public Writer(@NotNull File file) {
         this(file, null);
     }
 
     /**
-     * Allows a Writer to write files eventually versus once {@link #write(String)} is called
+     * Allows a Writer to write files eventually versus once {@link #write(String)} is called.
      *
      * @param file the {@link File} to eventually write data to
      * @param writerThread the {@link WriterThread} that writes data
@@ -52,7 +53,7 @@ public class Writer {
     }
 
     /**
-     * Write the contents of a String to a {@link File}
+     * Write the contents of a String to a {@link File}.
      *
      * @param data the data to write
      * @throws IOException the file cannot be written to
@@ -72,13 +73,16 @@ public class Writer {
      * @see #canUseWriterThread()
      */
     synchronized void writeDataWithDedicatedThread(@NotNull String data) {
-        if (canUseWriterThread()) throw new IllegalStateException("Not bound to writing thread");
+        if (canUseWriterThread()) {
+            throw new IllegalStateException("Not bound to writing thread");
+        }
+
         dataCache = data;
-        writerThread.addWriter(this);
+        Objects.requireNonNull(writerThread).addWriter(this);
     }
 
     /**
-     * Checks if this {@link Writer} can use a dedicated {@link Thread} for writing with
+     * Checks if this {@link Writer} can use a dedicated {@link Thread} for writing with.
      *
      * @return {@code true} if a dedicated {@code Thread} can be used
      */
@@ -87,8 +91,10 @@ public class Writer {
         return writerThread == null;
     }
 
-    synchronized void _threadWrite() {
-        if (dataCache == null) return;
+    synchronized void threadWrite() {
+        if (dataCache == null) {
+            return;
+        }
 
         try {
             write(dataCache);

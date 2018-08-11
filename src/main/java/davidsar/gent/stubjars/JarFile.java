@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JarFile {
-    private static Map<File, JarFile> jarFiles = new HashMap<>();
+    private static final Map<File, JarFile> jarFiles = new HashMap<>();
     private final File jar;
 
     private JarFile(File jar) {
@@ -39,7 +39,9 @@ public class JarFile {
     }
 
     static JarFile forFile(@NotNull File jar) {
-        if (jarFiles.containsKey(jar)) return jarFiles.get(jar);
+        if (jarFiles.containsKey(jar)) {
+            return jarFiles.get(jar);
+        }
 
         JarFile jarFile = new JarFile(jar);
         jarFiles.put(jar, jarFile);

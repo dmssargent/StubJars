@@ -13,68 +13,87 @@
 
 package davidsar.gent.stubjars.components;
 
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 class Value {
     /**
-     * Returns a String contains the default value for a given type
+     * Returns a String contains the default value for a given type.
      *
      * @param type a {@link Type} to get the default value for
      * @return a String with the default type for the parameter type
      */
-    public static String defaultValueForType(Type type) {
+    static Expression defaultValueForType(Type type) {
         return defaultValueForType(type, false);
     }
 
     /**
-     * Returns a String contains the default value for a given type
+     * Returns a String contains the default value for a given type.
      *
-     * @param type     a {@link Type} to get the default value for
+     * @param type a {@link Type} to get the default value for
      * @param constant {@code true} if the returned value should be a constant
      * @return a String with the default type for the parameter type
      */
-    public static String defaultValueForType(Type type, boolean constant) {
+    static Expression defaultValueForType(Type type, boolean constant) {
         if (!(type instanceof Class)) {
-            if (type instanceof ParameterizedType) return defaultValueForType(((ParameterizedType) type).getRawType());
+            if (type instanceof ParameterizedType) {
+                return defaultValueForType(((ParameterizedType) type).getRawType());
+            }
+
             return defaultValueForType(Object.class);
         }
 
         if (type.equals(int.class) || type.equals(Integer.class)) {
-            return "0";
+            return Expressions.fromString("0");
         } else if (type.equals(double.class) || type.equals(Double.class)) {
-            return "0.0";
+            return Expressions.fromString("0.0");
         } else if (type.equals(long.class) || type.equals(Long.class)) {
-            return "0L";
+            return Expressions.fromString("0L");
         } else if (type.equals(byte.class) || type.equals(Byte.class)) {
-            return Expression.cast(byte.class, 0);
+            return Expressions.toCast(byte.class, 0);
         } else if (type.equals(short.class) || type.equals(Short.class)) {
-            return Expression.cast(short.class, 0);
+            return Expressions.toCast(short.class, 0);
         } else if (type.equals(boolean.class) || type.equals(Boolean.class)) {
-            return Boolean.toString(false);
+            return Expressions.fromString(Boolean.toString(false));
         } else if (type.equals(float.class) || type.equals(Float.class)) {
-            return Expression.cast(float.class, 0);
+            return Expressions.toCast(float.class, 0);
         } else if (type.equals(char.class) || type.equals(Character.class)) {
-            return Expression.cast(char.class, 0);
+            return Expressions.toCast(char.class, 0);
         } else if (type.equals(String.class)) {
-            return "\"\"";
+            return Expressions.fromString("\"\"");
         } else if (((Class) type).isArray()) {
-            if (constant)
-                return "{}";
-            else
-                return String.format("new %s {}", JarType.toString(type));
+            if (constant) {
+                return Expressions.fromString("{}");
+            }
+
+            return Expressions.of(
+                Expressions.fromString("new"),
+                StringExpression.SPACE,
+                JarType.toExpression(type),
+                StringExpression.SPACE,
+                Expressions.emptyBlock());
         } else if (((Class) type).isEnum()) {
             //noinspection unchecked
             Enum[] enumConstants = JarClass.getEnumConstantsFor((Class<? extends Enum>) type);
             if (enumConstants == null) {
-                if (constant) throw new RuntimeException("Cannot determine constant value!");
+                if (constant) {
+                    throw new RuntimeException("Cannot determine constant value!");
+                }
 
-                return "null";
+                return Expressions.fromString("null");
             }
 
-            return JarType.toString(type) + "." + enumConstants[0].name();
+            return Expressions.of(
+                JarType.toExpression(type),
+                StringExpression.PERIOD,
+                Expressions.fromString(enumConstants[0].name())
+            );
         } else {
-            return "null";
+            return Expressions.fromString("null");
         }
     }
 }

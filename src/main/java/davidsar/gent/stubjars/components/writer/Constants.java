@@ -18,13 +18,20 @@ public class Constants {
     public static final String SPACE = " ";
     public static final String SEMICOLON = ";";
     public static final String INDENT = "    ";
-    public final static String NEW_LINE_CHARACTER = "\n";
+    public static final String NEW_LINE_CHARACTER = "\n";
 
-    public final static String LEFT_PAREN = "(";
-    public final static String RIGHT_PAREN = ")";
-    public static final String LCURLY = "{";
-    public static final String RCURLY = "}";
+    public static final String LEFT_PAREN = "(";
+    public static final String RIGHT_PAREN = ")";
+    public static final String LEFT_CURLY = "{";
+    public static final String RIGHT_CURLY = "}";
     public static final String COMMA = ",";
     public static final String AT = "@";
     public static final String PERIOD = ".";
+    public static final String LESS_THAN = "<";
+    public static final String GREATER_THAN = ">";
+    public static final String QUESTION_MARK = "?";
+    public static final String LEFT_BRACE = "[";
+    public static final String RIGHT_BRACE = "]";
+    public static final String EXTENDS = "extends";
+    public static final String SUPER = "super";
 }

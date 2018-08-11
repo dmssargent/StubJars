@@ -13,6 +13,11 @@
 
 package davidsar.gent.stubjars.components;
 
+import davidsar.gent.stubjars.components.expressions.CompileableExpression;
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 
@@ -20,7 +25,7 @@ public class JarField extends JarModifiers implements CompileableExpression {
     private final JarClass jarClass;
     private final Field field;
 
-    public JarField(JarClass<?> clazz, Field method) {
+    JarField(JarClass<?> clazz, Field method) {
         this.jarClass = clazz;
         this.field = method;
     }
@@ -30,7 +35,7 @@ public class JarField extends JarModifiers implements CompileableExpression {
         return field.getModifiers();
     }
 
-    public String name() {
+    String name() {
         return field.getName();
     }
 
@@ -41,29 +46,40 @@ public class JarField extends JarModifiers implements CompileableExpression {
     @Override
     public Expression compileToExpression() {
         // Figure method signature
-        final Expression security = Expression.of(Expression.of(security().getModifier()), Expression.when(security() != SecurityModifier.PACKAGE, Expression.StringExpression.SPACE));
-        final Expression finalS = Expression.whenWithSpace(isFinal(), "final");
-        final Expression staticS = Expression.whenWithSpace(isStatic(), "static");
-        final Expression volatileS = Expression.whenWithSpace(isVolatile(), "volatile");
-        final Expression transientS = Expression.whenWithSpace(isTransient(), "transient");
-        final Expression returnTypeS = Expression.of(JarType.toString(genericReturnType()));
-        final Expression nameS = Expression.of(name());
+        final Expression security = Expressions.of(Expressions.fromString(security().getModifier()),
+            Expressions.when(security() != SecurityModifier.PACKAGE,
+                StringExpression.SPACE));
+        final Expression finalS = Expressions.whenWithSpace(isFinal(), "final");
+        final Expression staticS = Expressions.whenWithSpace(isStatic(), "static");
+        final Expression volatileS = Expressions.whenWithSpace(isVolatile(), "volatile");
+        final Expression transientS = Expressions.whenWithSpace(isTransient(), "transient");
+        final Expression returnTypeS = Expressions.fromString(JarType.toString(genericReturnType()));
+        final Expression nameS = Expressions.fromString(name());
 
         final Expression assignmentS;
         if (isFinal()) {
-            assignmentS = Expression.of(Expression.of(" = "), Expression.forType(genericReturnType(), Value.defaultValueForType(genericReturnType())));
+            assignmentS = Expressions.of(
+                Expressions.fromString(" = "),
+                Expressions.forType(
+                    genericReturnType(),
+                    Value.defaultValueForType(genericReturnType())
+                )
+            );
         } else {
-            assignmentS = Expression.StringExpression.EMPTY;
+            assignmentS = StringExpression.EMPTY;
         }
 
-        return Expression.of(Expression.of(security, finalS, staticS, volatileS, transientS, returnTypeS).spaceAfter(), nameS, assignmentS).statement();
+        return Expressions.of(
+            Expressions.of(security, finalS, staticS, volatileS, transientS, returnTypeS).asSpaceAfter(),
+            nameS, assignmentS
+        ).asStatement();
     }
 
-    public JarClass<?> getClazz() {
+    JarClass<?> getClazz() {
         return jarClass;
     }
 
-    public boolean isSynthetic() {
+    boolean isSynthetic() {
         return field.isSynthetic();
     }
 }

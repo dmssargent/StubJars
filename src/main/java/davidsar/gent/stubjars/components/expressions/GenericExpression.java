@@ -11,12 +11,25 @@
  *  License for the specific language governing permissions and limitations under the License.
  */
 
-package davidsar.gent.stubjars;
+package davidsar.gent.stubjars.components.expressions;
 
-public class Preconditions {
-//    @Contract("null -> fail")
-//    @Deprecated
-//    public static void checkNotNull(Object o) {
-//        Objects.requireNonNull(o);
-//    }
+import java.util.Arrays;
+import java.util.List;
+
+final class GenericExpression extends Expression {
+    private final Expression[] children;
+
+    GenericExpression(Expression[] children) {
+        this.children = children;
+    }
+
+    @Override
+    public boolean hasChildren() {
+        return true;
+    }
+
+    @Override
+    public List<Expression> children() {
+        return Arrays.asList(children);
+    }
 }

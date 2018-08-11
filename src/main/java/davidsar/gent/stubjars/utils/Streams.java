@@ -17,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
@@ -24,6 +25,8 @@ import java.util.stream.StreamSupport;
 
 public class Streams {
     /**
+     * Builds a {@link Stream} from an {@link Enumeration}.
+     *
      * @param e   the {@link Enumeration} to back to {@link Stream}
      * @param <T> type of objects contained in the {@code Enumeration}
      * @return a new {@code Stream } from the elements of the {@code Enumeration}
@@ -31,6 +34,9 @@ public class Streams {
      */
     @NotNull
     public static <T> Stream<T> makeFor(@NotNull Enumeration<T> e) {
+        // fail fast
+        Objects.requireNonNull(e);
+
         return StreamSupport.stream(
                 Spliterators.spliteratorUnknownSize(
                         new Iterator<T>() {
