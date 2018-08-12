@@ -85,88 +85,123 @@ class JarType {
         }
 
         if (type instanceof ParameterizedType) {
-            //StringBuilder builder = new StringBuilder();
-            ParameterizedType pType = (ParameterizedType) type;
-            TypeExpression ownerTypeExpression;
-            if (pType.getOwnerType() != null) {
-                Type ownerType = pType.getOwnerType();
-                if (ownerType instanceof Class) {
-                    ownerTypeExpression = Expressions.forType(pType.getRawType(), JarClass.safeFullNameForClass((Class<?>) pType.getRawType()));
-                } else if (ownerType instanceof ParameterizedType) {
-                    Class<?> rawTypeOfOwner = (Class<?>) ((ParameterizedType) pType.getOwnerType()).getRawType();
-                    ownerTypeExpression = Expressions.forType(rawTypeOfOwner, Expressions.of(
-                        toExpression(ownerType),
-                        StringExpression.PERIOD,
-                        Expressions.forType(pType.getRawType(), Expressions.fromString(
-                            ((Class<?>) pType.getRawType()).getName()
-                                .replace(rawTypeOfOwner.getName() + "$", Constants.EMPTY_STRING))
-                        )
-                    ));
-                } else {
-                    throw new UnsupportedOperationException(type.getClass().getName());
-                }
-            } else {
-                ownerTypeExpression = Expressions.forType(pType.getRawType(),
-                    JarClass.safeFullNameForClass((Class<?>) pType.getRawType())
-                );
-            }
-
-            Type[] actualTypeArguments = pType.getActualTypeArguments();
-            Expression typeArgumentExpression = null;
-            if (!keepSimple && (actualTypeArguments != null && actualTypeArguments.length > 0)) {
-                typeArgumentExpression = Expressions.of(
-                    StringExpression.LESS_THAN,
-                    Expressions.makeListFrom(Arrays.stream(actualTypeArguments).map(typeArg -> {
-                        if (typeArg instanceof Class
-                            || typeArg instanceof ParameterizedType
-                            || typeArg instanceof TypeVariable
-                            || typeArg instanceof GenericArrayType
-                            || typeArg instanceof WildcardType) {
-                            return toExpression(typeArg);
-                        }
-                        throw new UnsupportedOperationException(typeArg.getClass().getName());
-                    })),
-                    StringExpression.GREATER_THAN
-                );
-            }
-
-            if (typeArgumentExpression == null) {
-                return ownerTypeExpression;
-            } else {
-                return new ParameterizedTypeExpression(type, ownerTypeExpression, typeArgumentExpression);
-            }
+            return parameterizedTypeToExpression((ParameterizedType) type, keepSimple);
         }
 
         if (type instanceof TypeVariable) {
-            TypeVariable tType = (TypeVariable) type;
-            if (resolver == null) {
-                return Expressions.forType(type, Expressions.fromString(tType.getName()));
-            }
-
-            return Expressions.forType(tType, Expressions.fromString(resolver.apply(tType)));
+            return typeVariableToExpression(type, resolver);
         }
 
         if (type instanceof GenericArrayType) {
-            return Expressions.forType(type,
-                Expressions.of(
-                    toExpression(((GenericArrayType) type).getGenericComponentType(), keepSimple, resolver),
-                    Expressions.fromString("[]")
-                )
-            );
+            return genericArrayTypeToExpression(type, keepSimple, resolver);
         }
 
         if (type instanceof WildcardType) {
-            WildcardType wType = (WildcardType) type;
-            if (wType.getLowerBounds() != null && wType.getLowerBounds().length > 0) {
-                return new WildcardSuperType(wType, toExpression(wType.getLowerBounds()[0], keepSimple, resolver));
-            } else if (wType.getUpperBounds()[0] == Object.class) {
-                return new WildcardTypeExpression();
-            } else {
-                return new WildcardExtendsType(wType, toExpression(wType.getUpperBounds()[0], keepSimple, resolver));
-            }
+            return wildcardTypeToExpression((WildcardType) type, keepSimple, resolver);
         }
 
         throw new UnsupportedOperationException(type.getClass().getName());
+    }
+
+    @NotNull
+    private static TypeExpression parameterizedTypeToExpression(@NotNull ParameterizedType type, boolean keepSimple) {
+        TypeExpression ownerTypeExpression;
+        if (type.getOwnerType() != null) {
+            ownerTypeExpression = handleOwnerTypeOfParameterizedType(type);
+        } else {
+            ownerTypeExpression = handleRawTypeOfParameterizedType(type);
+        }
+
+        Expression typeArgumentExpression = handleTypeArgumentsOfParameterizedType(type, keepSimple);
+
+        if (typeArgumentExpression == null) {
+            return ownerTypeExpression;
+        } else {
+            return new ParameterizedTypeExpression(type, ownerTypeExpression, typeArgumentExpression);
+        }
+    }
+
+    @NotNull
+    private static TypeExpression handleRawTypeOfParameterizedType(@NotNull ParameterizedType type) {
+        return Expressions.forType(type.getRawType(),
+            JarClass.safeFullNameForClass((Class<?>) type.getRawType())
+        );
+    }
+
+    @Nullable
+    private static Expression handleTypeArgumentsOfParameterizedType(@NotNull ParameterizedType type, boolean keepSimple) {
+        Type[] actualTypeArguments = type.getActualTypeArguments();
+        Expression typeArgumentExpression = null;
+        if (!keepSimple && (actualTypeArguments != null && actualTypeArguments.length > 0)) {
+            typeArgumentExpression = Expressions.of(
+                StringExpression.LESS_THAN,
+                Expressions.makeListFrom(Arrays.stream(actualTypeArguments).map(typeArg -> {
+                    if (typeArg instanceof Class
+                        || typeArg instanceof ParameterizedType
+                        || typeArg instanceof TypeVariable
+                        || typeArg instanceof GenericArrayType
+                        || typeArg instanceof WildcardType) {
+                        return toExpression(typeArg);
+                    }
+                    throw new UnsupportedOperationException(typeArg.getClass().getName());
+                })),
+                StringExpression.GREATER_THAN
+            );
+        }
+        return typeArgumentExpression;
+    }
+
+    @NotNull
+    private static TypeExpression handleOwnerTypeOfParameterizedType(@NotNull ParameterizedType type) {
+        TypeExpression ownerTypeExpression;
+        if (type.getOwnerType() instanceof Class) {
+            ownerTypeExpression = handleRawTypeOfParameterizedType(type);
+        } else if (type.getOwnerType() instanceof ParameterizedType) {
+            Class<?> rawTypeOfOwner = (Class<?>) ((ParameterizedType) type.getOwnerType()).getRawType();
+            ownerTypeExpression = Expressions.forType(rawTypeOfOwner, Expressions.of(
+                toExpression(type.getOwnerType()),
+                StringExpression.PERIOD,
+                Expressions.forType(type.getRawType(), Expressions.fromString(
+                    ((Class<?>) type.getRawType()).getName()
+                        .replace(rawTypeOfOwner.getName() + "$", Constants.EMPTY_STRING))
+                )
+            ));
+        } else {
+            throw new UnsupportedOperationException(type.getClass().getName());
+        }
+
+        return ownerTypeExpression;
+    }
+
+    @NotNull
+    private static TypeExpression typeVariableToExpression(@NotNull Type type, @Nullable Function<TypeVariable, String> resolver) {
+        TypeVariable tType = (TypeVariable) type;
+        if (resolver == null) {
+            return Expressions.forType(type, Expressions.fromString(tType.getName()));
+        }
+
+        return Expressions.forType(tType, Expressions.fromString(resolver.apply(tType)));
+    }
+
+    @NotNull
+    private static TypeExpression genericArrayTypeToExpression(@NotNull Type type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
+        return Expressions.forType(type,
+            Expressions.of(
+                toExpression(((GenericArrayType) type).getGenericComponentType(), keepSimple, resolver),
+                Expressions.fromString("[]")
+            )
+        );
+    }
+
+    @NotNull
+    private static TypeExpression wildcardTypeToExpression(@NotNull WildcardType type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
+        if (type.getLowerBounds() != null && type.getLowerBounds().length > 0) {
+            return new WildcardSuperType(type, toExpression(type.getLowerBounds()[0], keepSimple, resolver));
+        } else if (type.getUpperBounds()[0] == Object.class) {
+            return new WildcardTypeExpression();
+        } else {
+            return new WildcardExtendsType(type, toExpression(type.getUpperBounds()[0], keepSimple, resolver));
+        }
     }
 
 

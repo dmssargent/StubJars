@@ -56,6 +56,11 @@ class Main {
         build.createDirectoryTree();
         log.info("stub_src directory tree creation finished");
         log.info("Starting creation of stub_src files");
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         build.createSourceFiles();
         log.info("Creation of stub_src files finished");
 

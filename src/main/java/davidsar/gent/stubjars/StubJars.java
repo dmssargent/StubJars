@@ -25,11 +25,13 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The main class for StubJars.
@@ -38,15 +40,16 @@ import java.util.stream.Collectors;
  */
 public class StubJars {
     private static final Logger log = LoggerFactory.getLogger(StubJars.class);
-    private final ConcurrentMap<Class<?>, JarClass<?>> clazzes;
+    private final List<JarClass<?>> clazzes;
     private List<Package> packages;
     private static final File SOURCE_DIR = new File("stub_src");
     private static final File BUILD_DIR = new File(SOURCE_DIR, "build");
     private static final File CLASSES_DIR = new File(BUILD_DIR, "classes");
     private static final File SOURCES_LIST_FILE = new File(SOURCE_DIR, "sources.list");
+    private final int numberOfCompilerThreads = 4;
 
 
-    private StubJars(@NotNull ConcurrentMap<Class<?>, JarClass<?>> clazzes) {
+    private StubJars(@NotNull List<JarClass<?>> clazzes) {
         this.clazzes = clazzes;
     }
 
@@ -74,49 +77,77 @@ public class StubJars {
 
     private void buildPackagesList() {
         packages = new ArrayList<>();
-        for (Class clazz : clazzes.keySet()) {
-            if (!packages.contains(clazz.getPackage())) {
-                packages.add(clazz.getPackage());
+        for (JarClass clazz : clazzes) {
+            if (!packages.contains(clazz.getClazz().getPackage())) {
+                packages.add(clazz.getClazz().getPackage());
             }
         }
     }
 
     void createSourceFiles() {
-        WriterThread writerThread = new WriterThread();
-        writerThread.start();
+        WriterThread writerThread = startWriterThread();
         StringBuilder sourceFiles = new StringBuilder();
-        for (JarClass e : clazzes.values()) {
-            if (e.isInnerClass() || e.name().isEmpty() || e.security() == SecurityModifier.PRIVATE) {
-                continue;
-            }
 
-            // this breaks compilation (currently)
-            // todo: make unneeded
-            if (e.getClazz().getName().equals(Enum.class.getName())) {
-                continue;
-            }
-
-            File file = new File(SOURCE_DIR, e.getClazz().getName()
-                .replace('.', File.separatorChar) + ".java");
-            JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
-            sourceFiles.append(file.getAbsolutePath()).append(System.lineSeparator());
-            writer.write();
-        }
-
-        writerThread.done();
-        try {
-            writerThread.waitForCompletion();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        ExecutorService threads = Executors.newFixedThreadPool(numberOfCompilerThreads);
+        submitCompilerJobs(writerThread, sourceFiles, threads);
+        
+        if (!waitForFinish(writerThread, threads)) {
             return;
         }
 
-        Writer sourcesList = new Writer(SOURCES_LIST_FILE);
+        writeSourceFileList(sourceFiles);
+        waitForWriterThreadToFinish(writerThread);
+    }
+
+    @NotNull
+    private WriterThread startWriterThread() {
+        WriterThread writerThread = new WriterThread();
+        writerThread.start();
+        return writerThread;
+    }
+
+    private void waitForWriterThreadToFinish(WriterThread writerThread) {
         try {
-            sourcesList.write(sourceFiles.toString());
+
             writerThread.join();
         } catch (Exception e) {
             log.error("Failed to write files", e);
+        }
+    }
+
+    private void writeSourceFileList(StringBuilder sourceFiles) {
+        Writer sourcesList = new Writer(SOURCES_LIST_FILE);
+        try {
+            sourcesList.write(sourceFiles.toString());
+        } catch (IOException e) {
+            log.error("Failed to write source file list", e);
+        }
+    }
+
+    private boolean waitForFinish(WriterThread writerThread, ExecutorService threads) {
+        threads.shutdown();
+        try {
+            threads.awaitTermination(Integer.MAX_VALUE, TimeUnit.DAYS);
+            writerThread.done();
+            writerThread.waitForCompletion();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        return true;
+    }
+
+    private void submitCompilerJobs(WriterThread writerThread, StringBuilder sourceFiles, ExecutorService threads) {
+        Semaphore lock = new Semaphore(1, true);
+        for (int iThread = 0; iThread < numberOfCompilerThreads; ++iThread) {
+            final int segmentSize = clazzes.size() / numberOfCompilerThreads;
+            List<JarClass<?>> list = Collections.unmodifiableList(
+                clazzes.subList(
+                    iThread * segmentSize,
+                    iThread == numberOfCompilerThreads - 1
+                        ? clazzes.size() : segmentSize * (iThread + 1))
+            );
+            threads.execute(new CompilerThread(list, writerThread, lock, sourceFiles));
         }
     }
 
@@ -178,7 +209,7 @@ public class StubJars {
         @NotNull StubJars build() {
             ClassLoader cpClassLoader = JarFile.createClassLoaderFromJars(null, classpathJars.toArray(new JarFile[0]));
             ClassLoader classLoader = JarFile.createClassLoaderFromJars(cpClassLoader, jars.toArray(new JarFile[0]));
-            ConcurrentMap<Class<?>, JarClass<?>> klazzes = new ConcurrentHashMap<>();
+            List<JarClass<?>> clazzes = Collections.synchronizedList(new ArrayList<>());
             for (JarFile jar : jars) {
                 final Set<JarClass<?>> classes;
                 try {
@@ -187,13 +218,53 @@ public class StubJars {
                     throw new RuntimeException("Cannot load jar!", e);
                 }
 
-                ConcurrentMap<Class<?>, JarClass<?>> klazzesFromJar = classes.stream()
-                    .collect(Collectors.toConcurrentMap(JarClass::getClazz, a -> a));
-                klazzes.putAll(klazzesFromJar);
+                clazzes.addAll(classes);
             }
 
-            JarClass.loadClassToJarClassMap(klazzes);
-            return new StubJars(klazzes);
+            JarClass.loadJarClassList(clazzes);
+            return new StubJars(clazzes);
+        }
+    }
+
+    private static class CompilerThread implements Runnable {
+        private final List<JarClass<?>> list;
+        private final WriterThread writerThread;
+        private final Semaphore lock;
+        private final StringBuilder sourceFiles;
+
+        public CompilerThread(List<JarClass<?>> list, WriterThread writerThread, Semaphore lock, StringBuilder sourceFiles) {
+            this.list = list;
+            this.writerThread = writerThread;
+            this.lock = lock;
+            this.sourceFiles = sourceFiles;
+        }
+
+        @Override
+        public void run() {
+            //threads.s
+            for (JarClass e : list) {
+                if (e.isInnerClass() || e.name().isEmpty() || e.security() == SecurityModifier.PRIVATE) {
+                    continue;
+                }
+
+                // this breaks compilation (currently)
+                // todo: make unneeded
+                if (e.getClazz().getName().equals(Enum.class.getName())) {
+                    continue;
+                }
+
+                File file = new File(SOURCE_DIR, e.getClazz().getName()
+                    .replace('.', File.separatorChar) + ".java");
+                JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
+                try {
+                    lock.acquire();
+                } catch (InterruptedException e1) {
+                    return;
+                }
+                sourceFiles.append(file.getAbsolutePath()).append(System.lineSeparator());
+                lock.release();
+                writer.write();
+            }
         }
     }
 }

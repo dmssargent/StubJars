@@ -73,7 +73,7 @@ public class Writer {
      * @see #canUseWriterThread()
      */
     synchronized void writeDataWithDedicatedThread(@NotNull String data) {
-        if (canUseWriterThread()) {
+        if (!canUseWriterThread()) {
             throw new IllegalStateException("Not bound to writing thread");
         }
 
@@ -88,7 +88,7 @@ public class Writer {
      */
     @Contract(pure = true)
     private boolean canUseWriterThread() {
-        return writerThread == null;
+        return writerThread != null;
     }
 
     synchronized void threadWrite() {

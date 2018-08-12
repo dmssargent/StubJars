@@ -13,14 +13,11 @@
 
 package davidsar.gent.stubjars.components;
 
-import static davidsar.gent.stubjars.components.writer.Constants.EMPTY_STRING;
-
 import davidsar.gent.stubjars.Utils;
 import davidsar.gent.stubjars.components.expressions.CompileableExpression;
 import davidsar.gent.stubjars.components.expressions.Expression;
 import davidsar.gent.stubjars.components.expressions.Expressions;
 import davidsar.gent.stubjars.components.expressions.StringExpression;
-import davidsar.gent.stubjars.components.writer.Constants;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,6 +28,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class JarConstructor<T> extends JarModifiers implements CompileableExpression {
     private final JarClass<T> clazz;
@@ -57,10 +56,13 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
     }
 
     @NotNull
-    String[] parameters() {
+    Expression[] parameters() {
         return Arrays.stream(constructor.getParameters())
-                .map(parameter -> JarType.toString(parameter.getParameterizedType()) + Constants.SPACE + parameter.getName())
-                .toArray(String[]::new);
+            .map(parameter -> Expressions.of(
+                JarType.toExpression(parameter.getParameterizedType()),
+                StringExpression.SPACE,
+                Expressions.fromString(parameter.getName()))
+            ).toArray(Expression[]::new);
     }
 
     @Nullable
@@ -119,17 +121,16 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
         return false;
     }
 
-    @NotNull
-    private String name() {
-        return constructor.getDeclaringClass().getSimpleName();
+    private Expression name() {
+        return Expressions.fromString(constructor.getDeclaringClass().getSimpleName());
     }
 
-    private static boolean hasDefaultConstructor(@NotNull Class<?> klazz) {
+    private static boolean hasDefaultConstructor(@NotNull Class<?> clazz) {
         try {
-            Class<?> declaringClass = klazz.getDeclaringClass();
+            Class<?> declaringClass = clazz.getDeclaringClass();
             Constructor<?> declaredConstructor;
-            if (declaringClass == null || Modifier.isStatic(klazz.getModifiers())) {
-                declaredConstructor = klazz.getDeclaredConstructor();
+            if (declaringClass == null || Modifier.isStatic(clazz.getModifiers())) {
+                declaredConstructor = clazz.getDeclaredConstructor();
             } else {
                 return false;
             }
@@ -150,25 +151,31 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
             throw new RuntimeException();
         }
 
-        final String security;
+        final Expression security;
         if (clazz.isInterface()) {
-            security = EMPTY_STRING;
+            security = StringExpression.EMPTY;
         } else {
-            security = security().getModifier() + (security() == SecurityModifier.PACKAGE ? EMPTY_STRING : Constants.SPACE);
+            security = security().expression();
         }
-        final String nameS = name();
+
+        final Expression nameS = name();
         final Expression parametersS;
         if (canRewriteConstructorParams()) {
             parametersS = StringExpression.EMPTY;
         } else {
-            parametersS = Utils.arrayToListExpression(parameters(), Expressions::fromString);
+            parametersS = Utils.arrayToListExpression(parameters());
         }
-        Class<?> clazzSuperClass = clazz.extendsClass();
 
-        final Expression stubMethod;
-        // What should the contents of the constructor be?
+        final Expression stubMethod = determineBody();
+        return new JarConstructorExpression(security, nameS, parametersS, stubMethod);
+    }
+
+    @NotNull
+    private Expression determineBody() {
+        Class<?> clazzSuperClass = clazz.extendsClass();
+        Expression stubMethod;// What should the contents of the constructor be?
         if (clazzSuperClass == null || JarConstructor.hasDefaultConstructor(clazzSuperClass)) {
-            stubMethod = StringExpression.EMPTY;
+            return Expressions.emptyBlock();
         } else {
             // We need to call some form of the default constructor, so we can compile code
             JarConstructor<?>[] declaredConstructors;
@@ -189,22 +196,18 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
             }
 
             if (selectedCotr == null || selectedCotr.canRewriteConstructorParams()) {
-                stubMethod = Expressions.toMethodCall("super").indent();
+                stubMethod = Expressions.toMethodCall("super").asBlock();
             } else {
                 Type[] genericParameterTypes = selectedCotr.getConstructor().getGenericParameterTypes();
                 stubMethod = Expressions.toMethodCall("super",
                     Utils.arrayToListExpression(genericParameterTypes,
                         paramType -> castedDefaultType(paramType, clazz)
                     )
-                ).indent();
+                ).asBlock();
             }
         }
 
-        return Expressions.fromString(
-            String.format("%s%s%s%s %s\n\n",
-                Constants.NEW_LINE_CHARACTER, security, nameS,
-                Expressions.asParenthetical(parametersS), Expressions.blockWith(stubMethod))
-        );
+        return stubMethod;
     }
 
     boolean canRewriteConstructorParams() {
@@ -233,5 +236,30 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
             Type obj = typeArgumentForClass(type, clazz.getClazz());
             return JarType.toString(obj != null ? obj : type);
         }), Value.defaultValueForType(correctType));
+    }
+
+    private class JarConstructorExpression extends Expression {
+        private List<Expression> children;
+
+        private JarConstructorExpression(Expression security, Expression nameS, Expression parametersS, Expression stubMethod) {
+            children = Collections.unmodifiableList(Arrays.asList(
+                security,
+                StringExpression.SPACE,
+                nameS,
+                parametersS.parenthetical(),
+                StringExpression.SPACE,
+                stubMethod
+            ));
+        }
+
+        @Override
+        protected boolean hasChildren() {
+            return true;
+        }
+
+        @Override
+        public List<Expression> children() {
+            return children;
+        }
     }
 }

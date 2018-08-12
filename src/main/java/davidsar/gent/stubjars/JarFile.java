@@ -75,17 +75,17 @@ public class JarFile {
                         throw new RuntimeException(e);
                     }
                 })
-                .flatMap(klazz -> Stream.concat(Stream.of(klazz), findInnerClasses(klazz)))
+            .flatMap(clazz -> Stream.concat(Stream.of(clazz), findInnerClasses(clazz)))
                 .collect(Collectors.toSet());
     }
 
     @NotNull
     private Stream<JarClass<?>> findInnerClasses(@NotNull JarClass<?> jarClass) {
         return jarClass.innerClasses().stream()
-                .flatMap(klazz -> {
-                    Stream<JarClass<?>> stream = klazz.innerClasses().stream();
-                    Stream<JarClass<?>> innerClasses = findInnerClasses(klazz);
-                    return Stream.concat(Stream.concat(Stream.of(klazz), stream), innerClasses);
+            .flatMap(clazz -> {
+                Stream<JarClass<?>> stream = clazz.innerClasses().stream();
+                Stream<JarClass<?>> innerClasses = findInnerClasses(clazz);
+                return Stream.concat(Stream.concat(Stream.of(clazz), stream), innerClasses);
                 });
     }
 }

@@ -149,30 +149,25 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
             throwsS
         );
 
-        Expression methodBody;
         if (parentClazz.isAnnotation() && hasDefaultValue()) {
-            methodBody = Expressions.of(
-                Expressions.fromString(" default "),
+            Expression methodBody = Expressions.of(
+                Expressions.toSpaceAfter("default"),
                 Expressions.forType(
                     defaultValue().getClass(), Value.defaultValueForType(defaultValue().getClass(),
                         true)
                 ),
                 StringExpression.SEMICOLON
             );
+
+            return Expressions.of(methodHeader, StringExpression.SPACE, methodBody);
         } else if ((isAbstract() && !isEnumField) || (parentClazz.isInterface() && !isStatic())) {
-            methodBody = StringExpression.SEMICOLON;
-        } else {
-            methodBody = stubMethod;
+            return Expressions.of(methodHeader, StringExpression.SEMICOLON);
         }
 
-        return Expressions.of(methodHeader, StringExpression.SPACE, methodBody);
+        return Expressions.of(methodHeader, StringExpression.SPACE, stubMethod);
     }
 
     private boolean shouldWriteMethod(boolean isEnumField) {
-        if (parentClazz.name().equals("FieldNamingPolicy")) {
-            log.debug("");
-        }
-
         // Skip create methods for these types of things, enum fields can't have static methods
         if ((isEnumField || parentClazz.isInterface()) && isStatic()) {
             return false;
@@ -202,10 +197,6 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
     }
 
     boolean shouldIncludeStaticMethod() {
-        if (name().equals("translateName")) {
-            log.debug("");
-        }
-
         if (!isStatic()) {
             return shouldIncludeMethod();
         }
@@ -266,7 +257,7 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
         return buildMethod(false);
     }
 
-    Expression compileToString(boolean isEnumField) {
+    Expression compileToExpression(boolean isEnumField) {
         return buildMethod(isEnumField);
     }
 }

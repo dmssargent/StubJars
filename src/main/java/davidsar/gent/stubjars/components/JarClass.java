@@ -39,8 +39,10 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -49,7 +51,8 @@ import java.util.stream.Stream;
 public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private static final Logger log = LoggerFactory.getLogger(JarClass.class);
     private static final Pattern classEntryPatternToBeStripped = Pattern.compile("\\.class$");
-    private static Map<Class<?>, JarClass<?>> classToJarClassMap;
+    private static Map<String, JarClass<?>> classToJarClassMap;
+
     private final Class<T> clazz;
     private Set<JarConstructor> constructors;
     private Set<JarMethod> methods;
@@ -73,14 +76,21 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         this.clazz = clazz;
     }
 
-    public static void loadClassToJarClassMap(@NotNull Map<Class<?>, @NotNull JarClass<?>> map) {
-        classToJarClassMap = map;
+    public static void loadJarClassList(@NotNull List<JarClass<?>> list) {
+        TreeMap<String, JarClass<?>> map = new TreeMap<>();
+        for (JarClass<?> a : list) {
+            if (map.put(a.clazz.getName(), a) != null) {
+                throw new IllegalStateException("Duplicate key");
+            }
+        }
+
+        classToJarClassMap = Collections.synchronizedSortedMap(map);
     }
 
     @NotNull
     static <T> JarClass<?> forClass(@NotNull Class<T> clazz) {
-        if (classToJarClassMap != null && classToJarClassMap.containsKey(clazz)) {
-            return classToJarClassMap.get(clazz);
+        if (classToJarClassMap != null && classToJarClassMap.containsKey(clazz.getName())) {
+            return classToJarClassMap.get(clazz.getName());
         }
 
         return new JarClass<>(clazz);
@@ -113,9 +123,8 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return clazz.getSimpleName();
     }
 
-    static boolean hasSafeName(@NotNull Class<?> klazz) {
-        JarClass jarClass = JarClass.forClass(klazz);
-        return !jarClass.clazz.isSynthetic() && !jarClass.clazz.isAnonymousClass();
+    static boolean hasSafeName(@NotNull Class<?> clazz) {
+        return !clazz.isSynthetic() && !clazz.isAnonymousClass();
     }
 
     static TypeExpression safeFullNameForClass(@NotNull Class<?> clazz) {
@@ -186,18 +195,16 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     public Set<JarClass<?>> innerClasses() {
         if (innerClasses == null) {
             innerClasses = Arrays.stream(clazz.getDeclaredClasses())
-                .filter(klazz -> !klazz.isLocalClass())
-                .filter(klazz -> !klazz.isAnonymousClass())
+                .filter(clazz -> !clazz.isLocalClass())
+                .filter(clazz -> !clazz.isAnonymousClass())
                 .map(JarClass::forClass).collect(Collectors.toSet());
         }
+
         return innerClasses;
     }
 
     @NotNull
     private Set<JarMethod> methods() {
-        if (name().equals("FieldNamingPolicy")) {
-            log.debug("");
-        }
         if (methods == null) {
             methods = Arrays.stream(clazz.getDeclaredMethods())
                 .map(method -> new JarMethod(this, method))
@@ -224,10 +231,10 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     }
 
     @NotNull
-    private static Set<Class<?>> allSuperClassesAndInterfaces(@NotNull Class<?> klazz) {
-        Set<Class<?>> superClasses = allSuperClasses(klazz, new HashSet<>());
+    private static Set<Class<?>> allSuperClassesAndInterfaces(@NotNull Class<?> clazz) {
+        Set<Class<?>> superClasses = allSuperClasses(clazz, new HashSet<>());
         Set<Class<?>> interfaces = new HashSet<>();
-        Collections.addAll(interfaces, klazz.getInterfaces());
+        Collections.addAll(interfaces, clazz.getInterfaces());
         for (Class<?> superClazz : superClasses) {
             Collections.addAll(interfaces, superClazz.getInterfaces());
         }
@@ -348,7 +355,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     @NotNull
     private String compileMethods(boolean isEnumConstant) {
         String methods = methods().stream()
-            .map(method -> method.compileToString(isEnumConstant).toString())
+            .map(method -> method.compileToExpression(isEnumConstant).toString())
             .flatMap(x -> Arrays.stream(x.split(NEW_LINE_CHARACTER)))
             .collect(Collectors.joining(System.lineSeparator() + INDENT));
 
@@ -408,7 +415,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                         return null;
                     }
 
-                    return Expressions.fromString(JarType.toString(x));
+                    return JarType.toExpression(x);
                 }),
                 StringExpression.SPACE
             );

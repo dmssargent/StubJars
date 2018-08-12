@@ -40,6 +40,11 @@ public class Utils {
     }
 
     @NotNull
+    public static <T> Expression arrayToListExpression(Expression[] expressions) {
+        return arrayToListExpression(expressions, x -> x);
+    }
+
+    @NotNull
     public static <T> Expression arrayToListExpression(T[] elements, Function<T, Expression> function) {
         return Expressions.makeListFrom(
             Arrays.stream(elements).map(function).toArray(Expression[]::new)

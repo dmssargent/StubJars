@@ -33,6 +33,11 @@ public abstract class Expression {
         return new IndentedExpression<>(this);
     }
 
+    @NotNull
+    public Parenthetical parenthetical() {
+        return new Parenthetical(this);
+    }
+
     public Expression asSpaceAfter() {
         return Expressions.toSpaceAfter(this);
     }
@@ -68,5 +73,9 @@ public abstract class Expression {
         }
 
         return children().hashCode();
+    }
+
+    public Expression asBlock() {
+        return Expressions.blockWith(this);
     }
 }

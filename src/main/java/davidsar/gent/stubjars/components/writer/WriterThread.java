@@ -14,6 +14,7 @@
 package davidsar.gent.stubjars.components.writer;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A specialized {@link Thread} for operations with a {@link Writer}.
@@ -32,6 +33,7 @@ public class WriterThread extends Thread implements Runnable {
 
     public void done() {
         stop = true;
+        // runningThread.interrupt();
     }
 
     void addWriter(Writer writer) {
@@ -55,15 +57,18 @@ public class WriterThread extends Thread implements Runnable {
     }
 
     private void internalRun() {
-        while (!Thread.currentThread().isInterrupted() && !(writersToProcess.isEmpty() && stop)) {
-            Writer writer;
-            try {
-                writer = writersToProcess.take();
-            } catch (InterruptedException e) {
-                return;
+        while (!Thread.currentThread().isInterrupted() && !stop) {
+            while (!(writersToProcess.isEmpty() && stop)) {
+                Writer writer;
+                try {
+                    writer = writersToProcess.poll(100, TimeUnit.MILLISECONDS);
+                    if (writer != null) {
+                        writer.threadWrite();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
-
-            writer.threadWrite();
         }
     }
 

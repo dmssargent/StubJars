@@ -19,7 +19,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
 
 public final class BlockStatement extends Expression {
     private final Expression[] statements;
@@ -51,13 +50,13 @@ public final class BlockStatement extends Expression {
         }
 
         Expression indentedStatements = Expressions.of(Arrays.stream(statements)
-            .map((Function<Expression, @NotNull IndentedExpression>) Expression::indent)
+            .map(Expression::indent)
             .toArray(Expression[]::new)
         );
+
         return Collections.unmodifiableList(Arrays.asList(StringExpression.LEFT_CURLY, StringExpression.NEW_LINE,
             indentedStatements,
             StringExpression.RIGHT_CURLY, StringExpression.NEW_LINE
         ));
-
     }
 }
