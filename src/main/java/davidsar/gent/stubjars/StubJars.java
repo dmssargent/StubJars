@@ -90,7 +90,7 @@ public class StubJars {
 
         ExecutorService threads = Executors.newFixedThreadPool(numberOfCompilerThreads);
         submitCompilerJobs(writerThread, sourceFiles, threads);
-        
+
         if (!waitForFinish(writerThread, threads)) {
             return;
         }
@@ -241,21 +241,18 @@ public class StubJars {
 
         @Override
         public void run() {
-            //threads.s
             for (JarClass e : list) {
-                if (e.isInnerClass() || e.name().isEmpty() || e.security() == SecurityModifier.PRIVATE) {
+                if (e.isInnerClass()
+                    || e.name().isEmpty()
+                    || e.security() == SecurityModifier.PRIVATE
+                    || e.fullName().equals(Enum.class.getName())) {
                     continue;
                 }
 
-                // this breaks compilation (currently)
-                // todo: make unneeded
-                if (e.getClazz().getName().equals(Enum.class.getName())) {
-                    continue;
-                }
-
-                File file = new File(SOURCE_DIR, e.getClazz().getName()
+                File file = new File(SOURCE_DIR, e.fullName()
                     .replace('.', File.separatorChar) + ".java");
                 JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
+                writer.write();
                 try {
                     lock.acquire();
                 } catch (InterruptedException e1) {
@@ -263,7 +260,6 @@ public class StubJars {
                 }
                 sourceFiles.append(file.getAbsolutePath()).append(System.lineSeparator());
                 lock.release();
-                writer.write();
             }
         }
     }

@@ -27,6 +27,11 @@ public final class Expressions {
     }
 
     @NotNull
+    public static IndentedExpression<Expression> indent(Expression... expressions) {
+        return new IndentedExpression<>(of(expressions));
+    }
+
+    @NotNull
     public static BlockStatement emptyBlock() {
         return new BlockStatement();
     }

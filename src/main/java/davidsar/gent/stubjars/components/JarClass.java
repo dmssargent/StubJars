@@ -14,8 +14,6 @@
 package davidsar.gent.stubjars.components;
 
 import static davidsar.gent.stubjars.components.writer.Constants.EMPTY_STRING;
-import static davidsar.gent.stubjars.components.writer.Constants.INDENT;
-import static davidsar.gent.stubjars.components.writer.Constants.NEW_LINE_CHARACTER;
 import static davidsar.gent.stubjars.components.writer.Constants.SPACE;
 
 import davidsar.gent.stubjars.Utils;
@@ -116,6 +114,11 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     public boolean isInnerClass() {
         return clazz.getDeclaringClass() != null || clazz.isLocalClass() || clazz.isAnonymousClass();
+    }
+
+    @NotNull
+    public String fullName() {
+        return clazz.getName();
     }
 
     @NotNull
@@ -297,44 +300,43 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     @NotNull
     private Expression compileClass(boolean isEnumConstant, String enumName) {
-        final String methods = compileMethods(isEnumConstant);
-        final String fields = compileFields();
-        final Expression clazzHeader;
-        final String constructors;
-        final String innerClasses;
-        if (isEnumConstant) {
-            constructors = EMPTY_STRING;
-            innerClasses = EMPTY_STRING;
-            clazzHeader = Expressions.toSpaceAfter(enumName);
-        } else {
-            constructors = compileConstructors();
-            innerClasses = compileInnerClasses();
-            clazzHeader = compileHeader();
-        }
+        final Expression methods = compileMethods(isEnumConstant);
+        final Expression fields = compileFields();
+        final Expression constructors = compileConstructors(isEnumConstant);
+        final Expression innerClasses = compileInnerClasses(isEnumConstant);
+        final Expression clazzHeader = compileHeader(isEnumConstant, enumName);
+
 
         // Enums need to be handled quite a bit differently, but we also need to check if we are working on
         // an enum constant to prevent infinite recursion
         if (isEnum() && !isEnumConstant) {
-            Expression enumMembers = StringExpression.EMPTY.asStatement();
-            Enum<?>[] invokedExpression = getEnumConstants();
-
-            if (invokedExpression != null) {
-                enumMembers = new EnumMembers(Arrays.stream(invokedExpression)
-                        .map(member -> JarClass.forClass(member.getClass()).compileClass(true, member.name()))
-                    .toArray(Expression[]::new)).asStatement();
-            }
-
-            return Expressions.of(Expressions.of(clazzHeader), Expression.blockWith(enumMembers.toString(), fields, methods, innerClasses));
+            return handleEnumClass(methods, fields, clazzHeader, innerClasses);
         }
 
-        return Expressions.of(Expressions.of(clazzHeader), Expression.blockWith(fields, constructors, methods, innerClasses));
+        return new ClassExpression(methods, fields, constructors, innerClasses, clazzHeader);
     }
 
+    @SuppressWarnings("GetClassOnEnum")
     @NotNull
-    private String compileFields() {
-        return this.fields().stream()
+    private Expression handleEnumClass(Expression methods, Expression fields, Expression clazzHeader, Expression innerClasses) {
+        Expression enumMembers = StringExpression.EMPTY.asStatement();
+        Enum<?>[] invokedExpression = getEnumConstants();
+
+        if (invokedExpression != null) {
+            enumMembers = new EnumMembers(Arrays.stream(invokedExpression)
+                    .map(member -> JarClass.forClass(member.getClass()).compileClass(true, member.name()))
+                .toArray(Expression[]::new)).asStatement();
+        }
+
+        return new ClassExpression(methods, enumMembers, fields, innerClasses, Expressions.of(clazzHeader));
+    }
+
+    private Expression compileFields() {
+        return Expressions.indent(fields().stream()
                 .filter(field ->
-                        !(field.getClazz().isEnum() || field.getClazz().isInnerClass()) && !field.isStatic() && !field.isSynthetic())
+                        !(field.getClazz().isEnum() || field.getClazz().isInnerClass())
+                            && !field.isStatic()
+                            && !field.isSynthetic())
                 .filter(field -> {
                     Class<?> superClazz = field.getClazz().extendsClass();
                     if (superClazz != null) {
@@ -342,61 +344,51 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                             superClazz.getDeclaredField(field.name());
                             return false;
                         } catch (NoSuchFieldException ignored) {
-                            log.debug("field \"{}\" does not exist on target class: {}", field.name(), getClazz().getName());
                         }
                     }
 
                     return true;
                 })
-            .map(field -> INDENT + field.compileToExpression() + NEW_LINE_CHARACTER)
-                .collect(Collectors.joining());
+            .map(JarField::compileToExpression)
+            .toArray(Expression[]::new));
+    }
+
+    private Expression compileMethods(boolean isEnumConstant) {
+        return Expressions.indent(methods().stream()
+            .map(method -> method.compileToExpression(isEnumConstant))
+            .toArray(Expression[]::new));
     }
 
     @NotNull
-    private String compileMethods(boolean isEnumConstant) {
-        String methods = methods().stream()
-            .map(method -> method.compileToExpression(isEnumConstant).toString())
-            .flatMap(x -> Arrays.stream(x.split(NEW_LINE_CHARACTER)))
-            .collect(Collectors.joining(System.lineSeparator() + INDENT));
-
-        if (methods.endsWith(NEW_LINE_CHARACTER)) {
-            methods = methods.substring(0, methods.length() - 1);
-        }
-
-        return methods;
-    }
-
-    @NotNull
-    private String compileInnerClasses() {
+    private Expression compileInnerClasses(boolean isEnumConstant) {
         Set<JarClass<?>> innerClasses = innerClasses();
-        if (innerClasses.size() == 0) {
-            return EMPTY_STRING;
+        if (innerClasses.size() == 0 || isEnumConstant) {
+            return StringExpression.EMPTY;
         }
 
-        return innerClasses.stream()
-            .map(x ->
-                (NEW_LINE_CHARACTER + x.compileToExpression() + NEW_LINE_CHARACTER)
-                    .split(NEW_LINE_CHARACTER)
-            ).flatMap(Arrays::stream)
-            .collect(Collectors.joining(System.lineSeparator() + INDENT));
+        return Expressions.indent(innerClasses.stream()
+            .map(JarClass::compileToExpression)
+            .toArray(Expression[]::new));
     }
 
     @NotNull
-    private String compileConstructors() {
-        // Interfaces don't have constructors
-        if (isInterface()) {
-            return EMPTY_STRING;
+    private Expression compileConstructors(boolean isEnumConstant) {
+        // Interfaces and enum constants don't have constructors
+        if (isEnumConstant || isInterface()) {
+            return StringExpression.EMPTY;
         }
 
-        return constructors().stream()
-                .map(JarConstructor::compileToExpression)
-            .flatMap(c -> Arrays.stream(c.toString().split(NEW_LINE_CHARACTER)))
-            .map(constructor -> INDENT + constructor)
-            .collect(Collectors.joining(NEW_LINE_CHARACTER));
+        return Expressions.indent(constructors().stream()
+            .map(JarConstructor::compileToExpression)
+            .toArray(Expression[]::new));
     }
 
     @NotNull
-    private Expression compileHeader() {
+    private Expression compileHeader(boolean isEnumConstant, String enumName) {
+        if (isEnumConstant) {
+            return Expressions.fromString(enumName);
+        }
+
         return new ClassHeaderExpression(this);
     }
 
@@ -494,6 +486,26 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             );
 
             return null;
+        }
+    }
+
+    private class ClassExpression extends Expression {
+        private final List<Expression> children;
+
+        public ClassExpression(Expression methods, Expression fields, Expression constructors, Expression innerClasses, Expression clazzHeader) {
+            children = Collections.unmodifiableList(Arrays.asList(
+                clazzHeader, Expressions.blockWith(fields, constructors, methods, innerClasses)
+            ));
+        }
+
+        @Override
+        protected boolean hasChildren() {
+            return true;
+        }
+
+        @Override
+        public List<Expression> children() {
+            return children;
         }
     }
 }

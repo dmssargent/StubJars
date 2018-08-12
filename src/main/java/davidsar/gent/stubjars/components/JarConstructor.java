@@ -182,7 +182,7 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
             JarClass<?> jarClass = JarClass.forClass(clazzSuperClass);
             declaredConstructors = jarClass.constructors().toArray(new JarConstructor<?>[0]);
             if (declaredConstructors.length <= 0) {
-                throw new UnsupportedOperationException("Cannot infer super cotr to write for " + clazz.getClazz().getName());
+                throw new UnsupportedOperationException("Cannot infer super cotr to write for " + clazz.fullName());
             }
 
             JarConstructor selectedCotr = null;
