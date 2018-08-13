@@ -49,11 +49,11 @@ public class JarField extends JarModifiers implements CompileableExpression {
         final Expression security = Expressions.of(Expressions.fromString(security().getModifier()),
             Expressions.when(security() != SecurityModifier.PACKAGE,
                 StringExpression.SPACE));
-        final Expression finalS = Expressions.whenWithSpace(isFinal(), "final");
-        final Expression staticS = Expressions.whenWithSpace(isStatic(), "static");
-        final Expression volatileS = Expressions.whenWithSpace(isVolatile(), "volatile");
-        final Expression transientS = Expressions.whenWithSpace(isTransient(), "transient");
-        final Expression returnTypeS = Expressions.fromString(JarType.toString(genericReturnType()));
+        final Expression finalS = Expressions.whenWithSpace(isFinal(), StringExpression.FINAL);
+        final Expression staticS = Expressions.whenWithSpace(isStatic(), StringExpression.STATIC);
+        final Expression volatileS = Expressions.whenWithSpace(isVolatile(), StringExpression.VOLATILE);
+        final Expression transientS = Expressions.whenWithSpace(isTransient(), StringExpression.TRANSIENT);
+        final Expression returnTypeS = Expressions.fromString(JarType.toString(genericReturnType(), getClazz()));
         final Expression nameS = Expressions.fromString(name());
 
         final Expression assignmentS;
@@ -62,7 +62,7 @@ public class JarField extends JarModifiers implements CompileableExpression {
                 Expressions.fromString(" = "),
                 Expressions.forType(
                     genericReturnType(),
-                    Value.defaultValueForType(genericReturnType())
+                    Value.defaultValueForType(genericReturnType(), getClazz())
                 )
             );
         } else {

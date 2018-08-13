@@ -16,34 +16,32 @@ package davidsar.gent.stubjars.components.expressions;
 import davidsar.gent.stubjars.components.JarClass;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class ClassHeaderExpression extends Expression {
-    private final Expression annotationS;
-    private final Expression security;
-    private final Expression staticS;
-    private final Expression abstractS;
-    private final Expression finalS;
-    private final Expression typeS;
-    private final Expression nameS;
-    private final Expression genericS;
-    private final Expression extendsS;
-    private final Expression implementsS;
+    private final List<Expression> children;
 
     public ClassHeaderExpression(JarClass jarClass) {
-        this.annotationS = jarClass.compileHeaderAnnotation();
-        this.security = jarClass.security().expression();
-        this.finalS = Expressions.whenWithSpace(jarClass.isFinal() && !jarClass.isEnum(), "final");
-        this.staticS = Expressions.whenWithSpace(jarClass.isStatic() && !jarClass.isEnum(), "static");
-        this.abstractS = Expressions.whenWithSpace(jarClass.isAbstract()
+        Expression annotationS = jarClass.compileHeaderAnnotation();
+        Expression security = jarClass.security().expression();
+        Expression finalS = Expressions.whenWithSpace(jarClass.isFinal() && !jarClass.isEnum(),
+            StringExpression.FINAL);
+        Expression staticS = Expressions.whenWithSpace(jarClass.isStatic() && !jarClass.isEnum(),
+            StringExpression.STATIC);
+        Expression abstractS = Expressions.whenWithSpace(jarClass.isAbstract()
             && !jarClass.isEnum()
             && !jarClass.isAnnotation()
-            && !jarClass.isInterface(), "abstract");
-        this.typeS = Expressions.forType(jarClass.getClazz(), JarClass.typeString(jarClass, jarClass.isEnum()));
-        this.genericS = Expressions.fromString(jarClass.compileTypeParameters());
-        this.nameS = Expressions.fromString(jarClass.name());
-        this.extendsS = Expressions.fromString(jarClass.compileHeaderExtends());
-        this.implementsS = Expressions.of(jarClass.compileHeaderImplements());
+            && !jarClass.isInterface(), StringExpression.ABSTRACT);
+        Expression typeS = JarClass.typeString(jarClass);
+        Expression genericS = jarClass.compileTypeParameters();
+        Expression nameS = Expressions.fromString(jarClass.name());
+        Expression extendsS = jarClass.compileHeaderExtends();
+        Expression implementsS = jarClass.compileHeaderImplements();
+
+        children = Collections.unmodifiableList(Arrays.asList(
+            annotationS, security, staticS, abstractS, finalS, typeS, StringExpression.SPACE, nameS, genericS, StringExpression.SPACE, extendsS, implementsS
+        ));
     }
 
     @Override
@@ -53,6 +51,6 @@ public class ClassHeaderExpression extends Expression {
 
     @Override
     public List<Expression> children() {
-        return Arrays.asList(annotationS, security, staticS, abstractS, finalS, typeS, nameS, genericS, extendsS, implementsS);
+        return children;
     }
 }

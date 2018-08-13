@@ -26,6 +26,15 @@ public final class StringExpression extends Expression {
     public static final Expression RIGHT_BRACE = new StringExpression(Constants.RIGHT_BRACE);
     public static final Expression EXTENDS = new StringExpression(Constants.EXTENDS);
     public static final Expression SUPER = new StringExpression(Constants.SUPER);
+    public static final Expression ANNOTATION_TYPE = new StringExpression(Constants.ANNOTATION_TYPE);
+    public static final Expression INTERFACE = new StringExpression(Constants.INTERFACE);
+    public static final Expression ENUM = new StringExpression(Constants.ENUM);
+    public static final Expression CLASS = new StringExpression(Constants.CLASS);
+    public static final Expression FINAL = new StringExpression(Constants.FINAL);
+    public static final Expression STATIC = new StringExpression(Constants.STATIC);
+    public static final Expression ABSTRACT = new StringExpression(Constants.ABSTRACT);
+    public static final Expression VOLATILE = new StringExpression(Constants.VOLATILE);
+    public static final Expression TRANSIENT = new StringExpression(Constants.TRANSIENT);
     static final Expression LEFT_PAREN = new StringExpression(Constants.LEFT_PAREN);
     static final Expression RIGHT_PAREN = new StringExpression(Constants.RIGHT_PAREN);
     public static final Expression SPACE = new StringExpression(Constants.SPACE);

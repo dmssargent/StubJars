@@ -58,8 +58,9 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
         }
         Parameter[] parameters = method.getParameters();
         String[] stringifiedParameters = Arrays.stream(parameters)
-                .map(parameter -> JarType.toString(parameter.getParameterizedType()) + Constants.SPACE + parameter.getName())
-                .toArray(String[]::new);
+            .map(parameter -> JarType.toString(
+                parameter.getParameterizedType(), parentClazz) + Constants.SPACE + parameter.getName()
+            ).toArray(String[]::new);
 
         if (method.isVarArgs()) {
             Parameter varArgsParameter = parameters[parameters.length - 1];
@@ -68,11 +69,11 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
                 if (parameterizedType instanceof GenericArrayType) {
                     stringifiedParameters[parameters.length - 1] =
                         JarType.toString(
-                            ((GenericArrayType) parameterizedType).getGenericComponentType())
-                            + "... " + varArgsParameter.getName();
+                            ((GenericArrayType) parameterizedType).getGenericComponentType(), parentClazz
+                        ) + "... " + varArgsParameter.getName();
                 } else if (parameterizedType instanceof Class) {
                     stringifiedParameters[parameters.length - 1] =
-                        JarType.toString(((Class) parameterizedType).getComponentType()) + "... "
+                        JarType.toString(((Class) parameterizedType).getComponentType(), parentClazz) + "... "
                             + varArgsParameter.getName();
                 }
             }
@@ -92,33 +93,28 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
         if (parentClazz.isInterface()) {
             security = StringExpression.EMPTY;
         } else {
-            security = Expressions.of(
-                Expressions.fromString(security().getModifier()),
-                Expressions.whenWithSpace(
-                    security() != SecurityModifier.PACKAGE, Constants.SPACE
-                )
-            );
+            security = security().expression();
         }
-        final Expression finalS = Expressions.whenWithSpace(isFinal(), "final");
-        final Expression staticS = Expressions.whenWithSpace(isStatic(), "static");
+        final Expression finalS = Expressions.whenWithSpace(isFinal(), StringExpression.FINAL);
+        final Expression staticS = Expressions.whenWithSpace(isStatic(), StringExpression.STATIC);
         final Expression abstractS;
         if (parentClazz.isInterface() || isEnumField) {
             abstractS = StringExpression.EMPTY;
         } else {
-            abstractS = Expressions.whenWithSpace(isAbstract(), "abstract");
+            abstractS = Expressions.whenWithSpace(isAbstract(), StringExpression.ABSTRACT);
         }
 
         final Expression returnTypeS = Expressions.forType(
-            genericReturnType(), JarType.toExpression(genericReturnType())
+            genericReturnType(), JarType.toExpression(genericReturnType(), parentClazz)
         );
         final Expression nameS = Expressions.fromString(name());
         final Expression parametersS = Utils.arrayToListExpression(parameters(), Expressions::fromString);
         final Expression throwsS = Expressions.fromString(requiresThrowsSignature()
-            ? " throws " + Utils.arrayToListExpression(throwsTypes(), JarType::toExpression)
+            ? " throws " + Utils.arrayToListExpression(throwsTypes(), x -> JarType.toExpression(x, parentClazz))
             : Constants.EMPTY_STRING);
         final Expression genericS;
         TypeVariable<Method>[] typeParameters = typeParameters();
-        genericS = Expressions.fromString(JarType.convertTypeParametersToString(typeParameters));
+        genericS = JarType.convertTypeParametersToExpression(typeParameters, parentClazz);
 
         // What should the method body be?
         final Expression stubMethod;
@@ -154,7 +150,7 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
                 Expressions.toSpaceAfter("default"),
                 Expressions.forType(
                     defaultValue().getClass(), Value.defaultValueForType(defaultValue().getClass(),
-                        true)
+                        parentClazz, true)
                 ),
                 StringExpression.SEMICOLON
             );

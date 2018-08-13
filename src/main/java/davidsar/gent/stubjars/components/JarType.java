@@ -39,53 +39,57 @@ class JarType {
         this.type = type;
     }
 
-    static String convertTypeParametersToString(TypeVariable<?>[] typeParameters) {
-        String genericS;
+    static Expression convertTypeParametersToExpression(TypeVariable<?>[] typeParameters, JarClass<?> against) {
         if (typeParameters.length == 0) {
-            genericS = Constants.SPACE;
-        } else {
-            Expression typeParams = Utils.arrayToListExpression(typeParameters, typeParam -> {
-                if (typeParam.getBounds()[0] == Object.class) {
-                    return Expressions.fromString(typeParam.getName());
-                } else {
-                    return Expressions.fromString(typeParam.getName() + " extends " + JarType.toString(typeParam.getBounds()[0]));
-                }
-            });
-            genericS = "<" + typeParams + "> ";
+            return StringExpression.SPACE;
         }
 
-        return genericS;
+        Expression typeParams = Utils.arrayToListExpression(typeParameters, typeParam -> {
+            if (typeParam.getBounds()[0] == Object.class) {
+                return Expressions.fromString(typeParam.getName());
+            } else {
+                return Expressions.of(
+                    Expressions.fromString(typeParam.getName()),
+                    StringExpression.SPACE,
+                    StringExpression.EXTENDS,
+                    StringExpression.SPACE,
+                    JarType.toExpression(typeParam.getBounds()[0], against));
+            }
+        });
+        return Expressions.of(
+            StringExpression.LESS_THAN,
+            typeParams,
+            StringExpression.GREATER_THAN
+        );
     }
 
     @NotNull
     @Override
     public String toString() {
-        return toString(type);
+        return toString(type, null);
     }
 
     @NotNull
-    static String toString(@NotNull Type type) {
-        return toString(type, false, null);
+    static String toString(@NotNull Type type, JarClass<?> against) {
+        return toString(type, against, false, null);
+    }
+
+    static TypeExpression toExpression(@NotNull Type type, JarClass<?> against) {
+        return toExpression(type, against, false, null);
     }
 
     @NotNull
-    static TypeExpression toExpression(@NotNull Type type) {
-        return toExpression(type, false, null);
+    public static String toString(@NotNull Type type, @NotNull JarClass<?> against, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
+        return toExpression(type, against, keepSimple, resolver).toString();
     }
 
-    @NotNull
-    public static String toString(@NotNull Type type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
-        return toExpression(type, keepSimple, resolver).toString();
-    }
-
-    @NotNull
-    public static TypeExpression toExpression(@NotNull Type type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
+    public static TypeExpression toExpression(@NotNull Type type, JarClass<?> against, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
         if (type instanceof Class) {
-            return JarClass.safeFullNameForClass((Class<?>) type);
+            return JarClass.safeFullNameForClass((Class<?>) type, against);
         }
 
         if (type instanceof ParameterizedType) {
-            return parameterizedTypeToExpression((ParameterizedType) type, keepSimple);
+            return parameterizedTypeToExpression((ParameterizedType) type, against, keepSimple);
         }
 
         if (type instanceof TypeVariable) {
@@ -93,26 +97,26 @@ class JarType {
         }
 
         if (type instanceof GenericArrayType) {
-            return genericArrayTypeToExpression(type, keepSimple, resolver);
+            return genericArrayTypeToExpression(type, against, keepSimple, resolver);
         }
 
         if (type instanceof WildcardType) {
-            return wildcardTypeToExpression((WildcardType) type, keepSimple, resolver);
+            return wildcardTypeToExpression((WildcardType) type, against, keepSimple, resolver);
         }
 
         throw new UnsupportedOperationException(type.getClass().getName());
     }
 
     @NotNull
-    private static TypeExpression parameterizedTypeToExpression(@NotNull ParameterizedType type, boolean keepSimple) {
+    private static TypeExpression parameterizedTypeToExpression(@NotNull ParameterizedType type, JarClass<?> against, boolean keepSimple) {
         TypeExpression ownerTypeExpression;
         if (type.getOwnerType() != null) {
-            ownerTypeExpression = handleOwnerTypeOfParameterizedType(type);
+            ownerTypeExpression = handleOwnerTypeOfParameterizedType(type, against);
         } else {
-            ownerTypeExpression = handleRawTypeOfParameterizedType(type);
+            ownerTypeExpression = handleRawTypeOfParameterizedType(type, against);
         }
 
-        Expression typeArgumentExpression = handleTypeArgumentsOfParameterizedType(type, keepSimple);
+        Expression typeArgumentExpression = handleTypeArgumentsOfParameterizedType(type, against, keepSimple);
 
         if (typeArgumentExpression == null) {
             return ownerTypeExpression;
@@ -121,15 +125,14 @@ class JarType {
         }
     }
 
-    @NotNull
-    private static TypeExpression handleRawTypeOfParameterizedType(@NotNull ParameterizedType type) {
+    private static TypeExpression handleRawTypeOfParameterizedType(@NotNull ParameterizedType type, JarClass<?> against) {
         return Expressions.forType(type.getRawType(),
-            JarClass.safeFullNameForClass((Class<?>) type.getRawType())
+            JarClass.safeFullNameForClass((Class<?>) type.getRawType(), against)
         );
     }
 
     @Nullable
-    private static Expression handleTypeArgumentsOfParameterizedType(@NotNull ParameterizedType type, boolean keepSimple) {
+    private static Expression handleTypeArgumentsOfParameterizedType(@NotNull ParameterizedType type, JarClass<?> against, boolean keepSimple) {
         Type[] actualTypeArguments = type.getActualTypeArguments();
         Expression typeArgumentExpression = null;
         if (!keepSimple && (actualTypeArguments != null && actualTypeArguments.length > 0)) {
@@ -141,7 +144,7 @@ class JarType {
                         || typeArg instanceof TypeVariable
                         || typeArg instanceof GenericArrayType
                         || typeArg instanceof WildcardType) {
-                        return toExpression(typeArg);
+                        return toExpression(typeArg, against);
                     }
                     throw new UnsupportedOperationException(typeArg.getClass().getName());
                 })),
@@ -152,14 +155,14 @@ class JarType {
     }
 
     @NotNull
-    private static TypeExpression handleOwnerTypeOfParameterizedType(@NotNull ParameterizedType type) {
+    private static TypeExpression handleOwnerTypeOfParameterizedType(@NotNull ParameterizedType type, JarClass<?> against) {
         TypeExpression ownerTypeExpression;
         if (type.getOwnerType() instanceof Class) {
-            ownerTypeExpression = handleRawTypeOfParameterizedType(type);
+            ownerTypeExpression = handleRawTypeOfParameterizedType(type, against);
         } else if (type.getOwnerType() instanceof ParameterizedType) {
             Class<?> rawTypeOfOwner = (Class<?>) ((ParameterizedType) type.getOwnerType()).getRawType();
             ownerTypeExpression = Expressions.forType(rawTypeOfOwner, Expressions.of(
-                toExpression(type.getOwnerType()),
+                toExpression(type.getOwnerType(), against),
                 StringExpression.PERIOD,
                 Expressions.forType(type.getRawType(), Expressions.fromString(
                     ((Class<?>) type.getRawType()).getName()
@@ -184,23 +187,23 @@ class JarType {
     }
 
     @NotNull
-    private static TypeExpression genericArrayTypeToExpression(@NotNull Type type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
+    private static TypeExpression genericArrayTypeToExpression(@NotNull Type type, JarClass<?> against, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
         return Expressions.forType(type,
             Expressions.of(
-                toExpression(((GenericArrayType) type).getGenericComponentType(), keepSimple, resolver),
+                toExpression(((GenericArrayType) type).getGenericComponentType(), against, keepSimple, resolver),
                 Expressions.fromString("[]")
             )
         );
     }
 
     @NotNull
-    private static TypeExpression wildcardTypeToExpression(@NotNull WildcardType type, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
+    private static TypeExpression wildcardTypeToExpression(@NotNull WildcardType type, JarClass<?> against, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
         if (type.getLowerBounds() != null && type.getLowerBounds().length > 0) {
-            return new WildcardSuperType(type, toExpression(type.getLowerBounds()[0], keepSimple, resolver));
+            return new WildcardSuperType(type, toExpression(type.getLowerBounds()[0], against, keepSimple, resolver));
         } else if (type.getUpperBounds()[0] == Object.class) {
             return new WildcardTypeExpression();
         } else {
-            return new WildcardExtendsType(type, toExpression(type.getUpperBounds()[0], keepSimple, resolver));
+            return new WildcardExtendsType(type, toExpression(type.getUpperBounds()[0], against, keepSimple, resolver));
         }
     }
 
@@ -260,9 +263,9 @@ class JarType {
     }
 
     static class ArrayType extends TypeExpression {
-        public ArrayType(@NotNull Class<?> clazz) {
+        public ArrayType(@NotNull Class<?> clazz, JarClass<?> against) {
             super(clazz, Expressions.of(
-                JarClass.safeFullNameForClass(clazz.getComponentType()),
+                JarClass.safeFullNameForClass(clazz.getComponentType(), against),
                 StringExpression.LEFT_BRACE,
                 StringExpression.RIGHT_BRACE)
             );

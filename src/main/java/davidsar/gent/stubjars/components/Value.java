@@ -27,8 +27,8 @@ class Value {
      * @param type a {@link Type} to get the default value for
      * @return a String with the default type for the parameter type
      */
-    static Expression defaultValueForType(Type type) {
-        return defaultValueForType(type, false);
+    static Expression defaultValueForType(Type type, JarClass<?> against) {
+        return defaultValueForType(type, against, false);
     }
 
     /**
@@ -38,13 +38,13 @@ class Value {
      * @param constant {@code true} if the returned value should be a constant
      * @return a String with the default type for the parameter type
      */
-    static Expression defaultValueForType(Type type, boolean constant) {
+    static Expression defaultValueForType(Type type, JarClass<?> against, boolean constant) {
         if (!(type instanceof Class)) {
             if (type instanceof ParameterizedType) {
-                return defaultValueForType(((ParameterizedType) type).getRawType());
+                return defaultValueForType(((ParameterizedType) type).getRawType(), against);
             }
 
-            return defaultValueForType(Object.class);
+            return defaultValueForType(Object.class, against);
         }
 
         if (type.equals(int.class) || type.equals(Integer.class)) {
@@ -73,7 +73,7 @@ class Value {
             return Expressions.of(
                 Expressions.fromString("new"),
                 StringExpression.SPACE,
-                JarType.toExpression(type),
+                JarType.toExpression(type, against),
                 StringExpression.SPACE,
                 Expressions.emptyBlock());
         } else if (((Class) type).isEnum()) {
@@ -88,7 +88,7 @@ class Value {
             }
 
             return Expressions.of(
-                JarType.toExpression(type),
+                JarType.toExpression(type, against),
                 StringExpression.PERIOD,
                 Expressions.fromString(enumConstants[0].name())
             );

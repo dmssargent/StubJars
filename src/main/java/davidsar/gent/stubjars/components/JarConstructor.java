@@ -59,7 +59,7 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
     Expression[] parameters() {
         return Arrays.stream(constructor.getParameters())
             .map(parameter -> Expressions.of(
-                JarType.toExpression(parameter.getParameterizedType()),
+                JarType.toExpression(parameter.getParameterizedType(), clazz),
                 StringExpression.SPACE,
                 Expressions.fromString(parameter.getName()))
             ).toArray(Expression[]::new);
@@ -232,13 +232,13 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
             return null;
         }
 
-        return Expressions.toCast(JarType.toExpression(correctType, true, type -> {
+        return Expressions.toCast(JarType.toExpression(correctType, clazz, true, type -> {
             Type obj = typeArgumentForClass(type, clazz.getClazz());
-            return JarType.toString(obj != null ? obj : type);
-        }), Value.defaultValueForType(correctType));
+            return JarType.toString(obj != null ? obj : type, clazz);
+        }), Value.defaultValueForType(correctType, clazz));
     }
 
-    private class JarConstructorExpression extends Expression {
+    private static class JarConstructorExpression extends Expression {
         private List<Expression> children;
 
         private JarConstructorExpression(Expression security, Expression nameS, Expression parametersS, Expression stubMethod) {

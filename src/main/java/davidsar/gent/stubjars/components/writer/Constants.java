@@ -34,4 +34,13 @@ public class Constants {
     public static final String RIGHT_BRACE = "]";
     public static final String EXTENDS = "extends";
     public static final String SUPER = "super";
+    public static final String ANNOTATION_TYPE = "@interface";
+    public static final String INTERFACE = "interface";
+    public static final String ENUM = "enum";
+    public static final String CLASS = "class";
+    public static final String FINAL = "final";
+    public static final String STATIC = "static";
+    public static final String ABSTRACT = "abstract";
+    public static final String TRANSIENT = "transient";
+    public static final String VOLATILE = "volatile";
 }

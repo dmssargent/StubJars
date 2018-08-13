@@ -14,7 +14,6 @@
 package davidsar.gent.stubjars.components;
 
 import static davidsar.gent.stubjars.components.writer.Constants.EMPTY_STRING;
-import static davidsar.gent.stubjars.components.writer.Constants.SPACE;
 
 import davidsar.gent.stubjars.Utils;
 import davidsar.gent.stubjars.components.expressions.ClassHeaderExpression;
@@ -130,16 +129,27 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return !clazz.isSynthetic() && !clazz.isAnonymousClass();
     }
 
-    static TypeExpression safeFullNameForClass(@NotNull Class<?> clazz) {
+    static TypeExpression safeFullNameForClass(@NotNull Class<?> clazz, JarClass<?> against) {
         if (!hasSafeName(clazz)) {
             throw new IllegalArgumentException("Class does not have safe name.");
         }
 
         if (clazz.isArray()) {
-            return new JarType.ArrayType(clazz);
+            return new JarType.ArrayType(clazz, against);
         }
 
-        String s = clazz.getName().replaceAll("\\$\\d*", ".");
+        String rawName;
+        final Package againstPackage = against != null ? against.getClazz().getPackage() : null;
+        if (againstPackage != null && clazz.getPackage() != null && clazz.getDeclaringClass() == null
+            && clazz.getPackage().getName().equals(againstPackage.getName())) {
+            rawName = clazz.getSimpleName();
+        } else if (clazz.getPackage() != null && clazz.getPackage().getName().equals("java.lang")) {
+            rawName = clazz.getSimpleName();
+        } else {
+            rawName = clazz.getName();
+        }
+
+        String s = rawName.replaceAll("\\$\\d*", ".");
         if (s.endsWith(".")) {
             throw new IllegalArgumentException("Class does not have safe name.");
         }
@@ -407,7 +417,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                         return null;
                     }
 
-                    return JarType.toExpression(x);
+                    return JarType.toExpression(x, this);
                 }),
                 StringExpression.SPACE
             );
@@ -417,19 +427,21 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     }
 
     @NotNull
-    public String compileHeaderExtends() {
-        final String extendsS;
+    public Expression compileHeaderExtends() {
         Class<?> extendsClazz = extendsClass();
         if (extendsClazz != null && !(extendsClazz.equals(Enum.class))) {
-            extendsS = "extends " + JarType.toString(extendsGenericClass()) + SPACE;
+            return Expressions.of(
+                StringExpression.EXTENDS.asSpaceAfter(),
+                JarType.toExpression(extendsGenericClass(), this),
+                StringExpression.SPACE
+            );
         } else {
-            extendsS = EMPTY_STRING;
+            return StringExpression.EMPTY;
         }
-        return extendsS;
     }
 
-    public String compileTypeParameters() {
-        return JarType.convertTypeParametersToString(getClazz().getTypeParameters());
+    public Expression compileTypeParameters() {
+        return JarType.convertTypeParametersToExpression(getClazz().getTypeParameters(), this);
     }
 
     @NotNull
@@ -439,9 +451,9 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             RetentionPolicy retentionPolicy = getClazz().getAnnotation(Retention.class).value();
             annotationS = Expressions.of(
                 StringExpression.AT,
-                Expressions.forType(Retention.class, JarClass.safeFullNameForClass(Retention.class)),
+                Expressions.forType(Retention.class, JarClass.safeFullNameForClass(Retention.class, this)),
                 Expressions.asParenthetical(Expressions.of(
-                    Expressions.of(safeFullNameForClass(RetentionPolicy.class)),
+                    Expressions.of(safeFullNameForClass(RetentionPolicy.class, this)),
                     StringExpression.PERIOD,
                     Expressions.fromString(retentionPolicy.name()))),
                 StringExpression.SPACE
@@ -453,18 +465,16 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     }
 
     @NotNull
-    public static Expression typeString(@NotNull JarClass<?> clazz, boolean enumTypeClass) {
-        final String typeS;
+    public static Expression typeString(@NotNull JarClass<?> clazz) {
         if (clazz.isAnnotation()) {
-            typeS = "@interface";
+            return StringExpression.ANNOTATION_TYPE;
         } else if (clazz.isInterface()) {
-            typeS = "interface";
-        } else if (enumTypeClass) {
-            typeS = "enum";
-        } else {
-            typeS = "class";
+            return StringExpression.INTERFACE;
+        } else if (clazz.isEnum()) {
+            return StringExpression.ENUM;
         }
-        return Expressions.toSpaceAfter(typeS);
+
+        return StringExpression.CLASS;
     }
 
     private <E extends Enum<?>> E[] getEnumConstants() {
@@ -489,10 +499,10 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         }
     }
 
-    private class ClassExpression extends Expression {
+    private static class ClassExpression extends Expression {
         private final List<Expression> children;
 
-        public ClassExpression(Expression methods, Expression fields, Expression constructors, Expression innerClasses, Expression clazzHeader) {
+        ClassExpression(Expression methods, Expression fields, Expression constructors, Expression innerClasses, Expression clazzHeader) {
             children = Collections.unmodifiableList(Arrays.asList(
                 clazzHeader, Expressions.blockWith(fields, constructors, methods, innerClasses)
             ));

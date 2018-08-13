@@ -108,8 +108,7 @@ public final class Expressions {
         return StringExpression.EMPTY;
     }
 
-    @NotNull
-    public static Expression whenWithSpace(boolean condition, String string) {
+    public static Expression whenWithSpace(boolean condition, Expression string) {
         if (condition) {
             return toSpaceAfter(string);
         }
