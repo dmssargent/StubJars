@@ -316,7 +316,6 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         final Expression innerClasses = compileInnerClasses(isEnumConstant);
         final Expression clazzHeader = compileHeader(isEnumConstant, enumName);
 
-
         // Enums need to be handled quite a bit differently, but we also need to check if we are working on
         // an enum constant to prevent infinite recursion
         if (isEnum() && !isEnumConstant) {
@@ -343,10 +342,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     private Expression compileFields() {
         return Expressions.indent(fields().stream()
-                .filter(field ->
-                        !(field.getClazz().isEnum() || field.getClazz().isInnerClass())
-                            && !field.isStatic()
-                            && !field.isSynthetic())
+            .filter(field -> !field.isStatic() && !field.isSynthetic())
                 .filter(field -> {
                     Class<?> superClazz = field.getClazz().extendsClass();
                     if (superClazz != null) {
