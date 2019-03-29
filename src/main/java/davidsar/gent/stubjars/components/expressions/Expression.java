@@ -33,6 +33,10 @@ public abstract class Expression {
         return new IndentedExpression<>(this);
     }
 
+    public int indentLevel() {
+        return 0;
+    }
+
     @NotNull
     public Parenthetical parenthetical() {
         return new Parenthetical(this);
@@ -42,7 +46,7 @@ public abstract class Expression {
         return Expressions.toSpaceAfter(this);
     }
 
-    protected abstract boolean hasChildren();
+    public abstract boolean hasChildren();
 
     public abstract List<Expression> children();
 

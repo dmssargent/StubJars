@@ -16,10 +16,10 @@ package davidsar.gent.stubjars.components.expressions;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Type;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
-public class TypeExpression extends Expression {
+public class TypeExpression extends Expression implements FormattedExpression {
     private final Expression expression;
     private final Type type;
 
@@ -35,6 +35,11 @@ public class TypeExpression extends Expression {
 
     @Override
     public List<Expression> children() {
-        return Collections.singletonList(expression);
+        return Arrays.asList(expression);
+    }
+
+    @Override
+    public Expression getFormattedString() {
+        return expression;
     }
 }

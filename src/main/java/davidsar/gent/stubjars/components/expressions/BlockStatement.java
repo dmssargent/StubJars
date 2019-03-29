@@ -55,8 +55,7 @@ public final class BlockStatement extends Expression {
         );
 
         return Collections.unmodifiableList(Arrays.asList(StringExpression.LEFT_CURLY, StringExpression.NEW_LINE,
-            indentedStatements,
-            StringExpression.RIGHT_CURLY, StringExpression.NEW_LINE
+            indentedStatements, StringExpression.RIGHT_CURLY, StringExpression.NEW_LINE
         ));
     }
 }

@@ -13,16 +13,8 @@
 
 package davidsar.gent.stubjars.components;
 
-import static davidsar.gent.stubjars.components.writer.Constants.EMPTY_STRING;
-
 import davidsar.gent.stubjars.Utils;
-import davidsar.gent.stubjars.components.expressions.ClassHeaderExpression;
-import davidsar.gent.stubjars.components.expressions.CompileableExpression;
-import davidsar.gent.stubjars.components.expressions.EnumMembers;
-import davidsar.gent.stubjars.components.expressions.Expression;
-import davidsar.gent.stubjars.components.expressions.Expressions;
-import davidsar.gent.stubjars.components.expressions.StringExpression;
-import davidsar.gent.stubjars.components.expressions.TypeExpression;
+import davidsar.gent.stubjars.components.expressions.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -33,17 +25,13 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static davidsar.gent.stubjars.components.writer.Constants.EMPTY_STRING;
 
 public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private static final Logger log = LoggerFactory.getLogger(JarClass.class);
@@ -311,7 +299,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     @NotNull
     private Expression compileClass(boolean isEnumConstant, String enumName) {
         final Expression methods = compileMethods(isEnumConstant);
-        final Expression fields = compileFields();
+        final Expression fields = compileFields(isEnumConstant);
         final Expression constructors = compileConstructors(isEnumConstant);
         final Expression innerClasses = compileInnerClasses(isEnumConstant);
         final Expression clazzHeader = compileHeader(isEnumConstant, enumName);
@@ -340,9 +328,9 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return new ClassExpression(methods, enumMembers, fields, innerClasses, Expressions.of(clazzHeader));
     }
 
-    private Expression compileFields() {
+    private Expression compileFields(boolean isEnumConstant) {
         return Expressions.indent(fields().stream()
-            .filter(field -> !field.isStatic() && !field.isSynthetic())
+            .filter(field -> !((isEnumConstant || isEnum()) && field.isStatic()) && !field.isSynthetic())
                 .filter(field -> {
                     Class<?> superClazz = field.getClazz().extendsClass();
                     if (superClazz != null) {
@@ -406,16 +394,14 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             && implementsInterfaces().length == 1)) {
             implementsS = clazz.isInterface()
                 ? Expressions.fromString("extends") : Expressions.fromString("implements");
-            implementsS = Expressions.of(
-                implementsS.asSpaceAfter(),
+            implementsS = Expressions.of(implementsS, StringExpression.SPACE,
                 Utils.arrayToListExpression(implementsGenericInterfaces(), x -> {
                     if (x.equals(Annotation.class)) {
                         return null;
                     }
 
                     return JarType.toExpression(x, this);
-                }),
-                StringExpression.SPACE
+                })
             );
         }
 
@@ -427,9 +413,9 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         Class<?> extendsClazz = extendsClass();
         if (extendsClazz != null && !(extendsClazz.equals(Enum.class))) {
             return Expressions.of(
-                StringExpression.EXTENDS.asSpaceAfter(),
-                JarType.toExpression(extendsGenericClass(), this),
-                StringExpression.SPACE
+                StringExpression.EXTENDS,
+                StringExpression.SPACE,
+                JarType.toExpression(extendsGenericClass(), this)
             );
         } else {
             return StringExpression.EMPTY;
@@ -445,15 +431,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         final Expression annotationS;
         if (isAnnotation() && getClazz().isAnnotationPresent(Retention.class)) {
             RetentionPolicy retentionPolicy = getClazz().getAnnotation(Retention.class).value();
-            annotationS = Expressions.of(
-                StringExpression.AT,
-                Expressions.forType(Retention.class, JarClass.safeFullNameForClass(Retention.class, this)),
-                Expressions.asParenthetical(Expressions.of(
-                    Expressions.of(safeFullNameForClass(RetentionPolicy.class, this)),
-                    StringExpression.PERIOD,
-                    Expressions.fromString(retentionPolicy.name()))),
-                StringExpression.SPACE
-            );
+            annotationS = new AnnotationExpression(this, Retention.class, retentionPolicy.name());
         } else {
             annotationS = StringExpression.EMPTY;
         }
@@ -505,7 +483,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         }
 
         @Override
-        protected boolean hasChildren() {
+        public boolean hasChildren() {
             return true;
         }
 

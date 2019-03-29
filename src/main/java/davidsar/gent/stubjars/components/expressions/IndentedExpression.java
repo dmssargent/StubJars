@@ -27,7 +27,7 @@ public class IndentedExpression<T extends Expression> extends Expression {
     }
 
     @Override
-    protected boolean hasChildren() {
+    public boolean hasChildren() {
         return true;
     }
 
@@ -38,5 +38,10 @@ public class IndentedExpression<T extends Expression> extends Expression {
         }
 
         return children;
+    }
+
+    @Override
+    public int indentLevel() {
+        return 1 + expression.indentLevel();
     }
 }

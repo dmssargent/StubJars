@@ -18,7 +18,7 @@ import davidsar.gent.stubjars.components.writer.Constants;
 import java.util.Collections;
 import java.util.List;
 
-public final class StringExpression extends Expression {
+public final class StringExpression extends Expression implements FormattedExpression {
     public static final Expression GREATER_THAN = new StringExpression(Constants.GREATER_THAN);
     public static final Expression LESS_THAN = new StringExpression(Constants.LESS_THAN);
     public static final Expression QUESTION_MARK = new StringExpression(Constants.QUESTION_MARK);
@@ -35,6 +35,10 @@ public final class StringExpression extends Expression {
     public static final Expression ABSTRACT = new StringExpression(Constants.ABSTRACT);
     public static final Expression VOLATILE = new StringExpression(Constants.VOLATILE);
     public static final Expression TRANSIENT = new StringExpression(Constants.TRANSIENT);
+    public static final Expression PACKAGE = new StringExpression(Constants.PACKAGE);
+    public static final Expression THROWS = new StringExpression(Constants.THROWS);
+    public static final Expression VARARGS = new StringExpression(Constants.VARARGS);
+    public static final Expression RETURN = new StringExpression(Constants.RETURN);
     static final Expression LEFT_PAREN = new StringExpression(Constants.LEFT_PAREN);
     static final Expression RIGHT_PAREN = new StringExpression(Constants.RIGHT_PAREN);
     public static final Expression SPACE = new StringExpression(Constants.SPACE);
@@ -80,5 +84,10 @@ public final class StringExpression extends Expression {
     @Override
     public int hashCode() {
         return data.hashCode();
+    }
+
+    @Override
+    public Expression getFormattedString() {
+        return this;
     }
 }

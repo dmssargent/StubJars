@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
-public class ListExpression extends Expression {
+public class ListExpression extends Expression implements FormattedExpression {
     static final List<Expression> DELIMITER_COMMA_NEW_LINE =
         Collections.unmodifiableList(Arrays.asList(
             StringExpression.COMMA, StringExpression.NEW_LINE
@@ -73,5 +73,10 @@ public class ListExpression extends Expression {
         });
 
         return expressionChildren;
+    }
+
+    @Override
+    public Expression getFormattedString() {
+        return Expressions.fromString(this.toString());
     }
 }

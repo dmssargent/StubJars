@@ -22,8 +22,10 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +34,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * The main class for StubJars.
@@ -41,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 public class StubJars {
     private static final Logger log = LoggerFactory.getLogger(StubJars.class);
     private final List<JarClass<?>> clazzes;
+    private final List<JarFile> classpathJars;
     private List<Package> packages;
     private static final File SOURCE_DIR = new File("stub_src");
     private static final File BUILD_DIR = new File(SOURCE_DIR, "build");
@@ -49,8 +55,9 @@ public class StubJars {
     private final int numberOfCompilerThreads = 4;
 
 
-    private StubJars(@NotNull List<JarClass<?>> clazzes) {
+    private StubJars(@NotNull List<JarClass<?>> clazzes, List<JarFile> classpathJars) {
         this.clazzes = clazzes;
+        this.classpathJars = classpathJars;
     }
 
     /**
@@ -108,7 +115,6 @@ public class StubJars {
 
     private void waitForWriterThreadToFinish(WriterThread writerThread) {
         try {
-
             writerThread.join();
         } catch (Exception e) {
             log.error("Failed to write files", e);
@@ -160,6 +166,41 @@ public class StubJars {
         return SOURCE_DIR;
     }
 
+    public void compileGeneratedCode() throws IOException, InterruptedException {
+        File javaHomeBin = Utils.getJavaHomeBinFromEnvironment();
+
+        List<String> javacProcessArgs = new ArrayList<>();
+        javacProcessArgs.add(new File(javaHomeBin, "javac").getPath());
+        if (!classpathJars.isEmpty()) {
+            javacProcessArgs.add("-cp");
+            javacProcessArgs.add(
+                classpathJars.stream()
+                    .map(jar -> jar.getJar().getPath())
+                    .collect(Collectors.joining(File.pathSeparator))
+            );
+        }
+        javacProcessArgs.add("-d");
+        javacProcessArgs.add(BUILD_DIR.getPath());
+        javacProcessArgs.add(String.format("@%s", SOURCES_LIST_FILE.getPath()));
+
+        Process javac = new ProcessBuilder(javacProcessArgs)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start();
+
+        if (javac.waitFor() == 0) {
+            return;
+        }
+
+        log.error("javac failed with error code {}", javac.exitValue());
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(javac.getInputStream(), UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                log.error(line);
+            }
+        }
+    }
+
     /**
      * Creates new {@link StubJars} instances.
      */
@@ -186,7 +227,10 @@ public class StubJars {
          *
          * @param jar a {@link File} representing a JAR file
          */
-        void addClasspathJar(@NotNull File jar) {
+        void addClasspathJar(@NotNull File jar) throws IOException {
+            if (!jar.exists()) {
+                throw new IOException("A provided classpath JAR doesn't exist. File: " + jar.getName());
+            }
             classpathJars.add(JarFile.forFile(jar));
         }
 
@@ -195,8 +239,11 @@ public class StubJars {
          *
          * @param jars the {@link File}s representing a JAR files
          */
-        void addJars(@NotNull File... jars) {
+        void addJars(@NotNull File... jars) throws IOException {
             for (File jar : jars) {
+                if (!jar.exists()) {
+                    throw new IOException("A provided JAR doesn't exist. File: " + jar.getName());
+                }
                 addJar(jar);
             }
         }
@@ -222,7 +269,7 @@ public class StubJars {
             }
 
             JarClass.loadJarClassList(clazzes);
-            return new StubJars(clazzes);
+            return new StubJars(clazzes, classpathJars);
         }
     }
 
@@ -249,8 +296,7 @@ public class StubJars {
                     continue;
                 }
 
-                File file = new File(SOURCE_DIR, e.fullName()
-                    .replace('.', File.separatorChar) + ".java");
+                File file = new File(SOURCE_DIR, e.fullName().replace('.', File.separatorChar) + ".java");
                 JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
                 writer.write();
                 try {

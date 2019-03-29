@@ -22,24 +22,20 @@ import davidsar.gent.stubjars.components.writer.Constants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.lang.reflect.WildcardType;
+import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
-class JarType {
+public class JarType {
     private final Type type;
 
     public JarType(@NotNull Type type) {
         this.type = type;
     }
 
-    static Expression convertTypeParametersToExpression(TypeVariable<?>[] typeParameters, JarClass<?> against) {
+    public static Expression convertTypeParametersToExpression(TypeVariable<?>[] typeParameters, JarClass<?> against) {
         if (typeParameters.length == 0) {
             return StringExpression.SPACE;
         }
@@ -71,10 +67,10 @@ class JarType {
 
     @NotNull
     static String toString(@NotNull Type type, JarClass<?> against) {
-        return toString(type, against, false, null);
+        return toExpression(type, against, false, null).toString();
     }
 
-    static TypeExpression toExpression(@NotNull Type type, JarClass<?> against) {
+    public static TypeExpression toExpression(@NotNull Type type, JarClass<?> against) {
         return toExpression(type, against, false, null);
     }
 

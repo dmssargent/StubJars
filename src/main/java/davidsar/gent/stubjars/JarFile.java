@@ -88,4 +88,8 @@ public class JarFile {
                 return Stream.concat(Stream.concat(Stream.of(clazz), stream), innerClasses);
                 });
     }
+
+    public File getJar() {
+        return jar;
+    }
 }

@@ -32,6 +32,15 @@ public final class Expressions {
     }
 
     @NotNull
+    public static Expression indent(Expression expression, int times) {
+        for (int i = 0; i < times; i++) {
+            expression = new IndentedExpression<>(expression);
+        }
+
+        return expression;
+    }
+
+    @NotNull
     public static BlockStatement emptyBlock() {
         return new BlockStatement();
     }
@@ -132,7 +141,7 @@ public final class Expressions {
         return new StringExpression(string);
     }
 
-    static Expression[] flatten(Collection<Expression> children) {
+    public static Expression[] flatten(Collection<Expression> children) {
         return flatten(children.stream());
     }
 
@@ -144,5 +153,13 @@ public final class Expressions {
 
             return Stream.of(expression);
         }).toArray(Expression[]::new);
+    }
+
+    public static Expression fromString(String... elements) {
+        StringBuilder result = new StringBuilder();
+        for (String element : elements) {
+            result.append(element);
+        }
+        return Expressions.fromString(result.toString());
     }
 }

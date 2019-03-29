@@ -16,28 +16,15 @@ package davidsar.gent.stubjars;
 import davidsar.gent.stubjars.components.expressions.Expression;
 import davidsar.gent.stubjars.components.expressions.Expressions;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.function.Function;
 
 public class Utils {
-    @NotNull
-    @Deprecated
-    public static <T> String arrayToCommaSeparatedList(T[] elements, Function<T, String> func) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < elements.length; ++i) {
-            String value = func.apply(elements[i]);
-            if (value == null) {
-                continue;
-            }
-            builder.append(value);
-            if (i < elements.length - 1 && !(i == elements.length - 2 && func.apply(elements[i + 1]) == null)) {
-                builder.append(", ");
-            }
-        }
-
-        return builder.toString();
-    }
+    private static Logger log = LoggerFactory.getLogger(Utils.class);
 
     @NotNull
     public static <T> Expression arrayToListExpression(Expression[] expressions) {
@@ -49,5 +36,24 @@ public class Utils {
         return Expressions.makeListFrom(
             Arrays.stream(elements).map(function).toArray(Expression[]::new)
         );
+    }
+
+    @NotNull
+    public static File getJavaHomeBinFromEnvironment() {
+        String javaHomeString = System.getenv("JAVA_HOME");
+        if (javaHomeString == null) {
+            log.error("JAVA_HOME does not exist");
+            throw new IllegalStateException("JAVA_HOME required but not specified");
+        }
+        File javaHome = new File(javaHomeString);
+        if (!javaHome.isDirectory()) {
+            throw new IllegalStateException("JAVA_HOME does not point a directory");
+        }
+        File javaHomeBin = new File(javaHome, "bin");
+        if (!javaHomeBin.isDirectory()) {
+            throw new IllegalStateException("JAVA_HOME points to an invalid JDK location");
+        }
+
+        return javaHomeBin;
     }
 }

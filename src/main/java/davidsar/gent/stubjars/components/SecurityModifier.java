@@ -14,8 +14,7 @@
 package davidsar.gent.stubjars.components;
 
 import davidsar.gent.stubjars.components.expressions.Expression;
-import davidsar.gent.stubjars.components.expressions.Expressions;
-import davidsar.gent.stubjars.components.expressions.StringExpression;
+import davidsar.gent.stubjars.components.expressions.SecurityModifierExpression;
 import davidsar.gent.stubjars.components.writer.Constants;
 
 public enum SecurityModifier {
@@ -37,9 +36,6 @@ public enum SecurityModifier {
      * @return the {@code Expression} representation of this
      */
     public Expression expression() {
-        return Expressions.of(
-            Expressions.fromString(getModifier()),
-            Expressions.when(this != SecurityModifier.PACKAGE, StringExpression.SPACE)
-        );
+        return new SecurityModifierExpression(this);
     }
 }

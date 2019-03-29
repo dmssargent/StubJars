@@ -13,10 +13,7 @@
 
 package davidsar.gent.stubjars.components;
 
-import davidsar.gent.stubjars.components.expressions.CompileableExpression;
-import davidsar.gent.stubjars.components.expressions.Expression;
-import davidsar.gent.stubjars.components.expressions.Expressions;
-import davidsar.gent.stubjars.components.expressions.StringExpression;
+import davidsar.gent.stubjars.components.expressions.*;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -46,14 +43,12 @@ public class JarField extends JarModifiers implements CompileableExpression {
     @Override
     public Expression compileToExpression() {
         // Figure method signature
-        final Expression security = Expressions.of(Expressions.fromString(security().getModifier()),
-            Expressions.when(security() != SecurityModifier.PACKAGE,
-                StringExpression.SPACE));
+        final Expression security = new SecurityModifierExpression(security());
         final Expression finalS = Expressions.whenWithSpace(isFinal(), StringExpression.FINAL);
         final Expression staticS = Expressions.whenWithSpace(isStatic(), StringExpression.STATIC);
         final Expression volatileS = Expressions.whenWithSpace(isVolatile(), StringExpression.VOLATILE);
         final Expression transientS = Expressions.whenWithSpace(isTransient(), StringExpression.TRANSIENT);
-        final Expression returnTypeS = Expressions.fromString(JarType.toString(genericReturnType(), getClazz()));
+        final Expression returnTypeS = JarType.toExpression(genericReturnType(), getClazz());
         final Expression nameS = Expressions.fromString(name());
 
         final Expression assignmentS;

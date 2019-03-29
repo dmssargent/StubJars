@@ -14,7 +14,11 @@
 package davidsar.gent.stubjars.components.writer;
 
 import davidsar.gent.stubjars.components.JarClass;
+import davidsar.gent.stubjars.components.TreeFormatter;
 import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.PackageStatement;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -45,19 +49,17 @@ public class JavaClassWriter extends Writer {
     @NotNull
     private String compile() {
         if (compiledString == null) {
-            this.compiledString = compile(klazz)
-                    .replaceAll("(\\s*\\n )+\\s*\\n(\\s*)", "\n\n$2")
-                    .replaceAll("([^ \\t\\n])[\\t ]+([^ \\t])", "$1 $2");
+            this.compiledString = String.join(Constants.NEW_LINE_CHARACTER, TreeFormatter.toLines(compile(klazz)));
         }
 
         return compiledString;
     }
 
     @NotNull
-    private static String compile(@NotNull final JarClass<?> klazz) {
-        String packageStatement = compilePackageStatement(klazz);
+    private static Expression compile(@NotNull final JarClass<?> klazz) {
+        Expression packageStatement = compilePackageStatement(klazz);
         Expression classBody = compileClass(klazz);
-        return String.format("%s\n%s", packageStatement, classBody);
+        return Expressions.of(packageStatement, StringExpression.NEW_LINE, classBody);
     }
 
     @NotNull
@@ -72,8 +74,8 @@ public class JavaClassWriter extends Writer {
      * @return source code version of the package name declaration
      */
     @NotNull
-    private static String compilePackageStatement(@NotNull final JarClass<?> clazz) {
-        return String.format("package %s;\n", clazz.packageName());
+    private static Expression compilePackageStatement(@NotNull final JarClass<?> clazz) {
+        return new PackageStatement(clazz.packageName());
     }
 
     public void write() {
