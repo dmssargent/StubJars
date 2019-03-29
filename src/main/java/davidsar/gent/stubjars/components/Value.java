@@ -96,4 +96,35 @@ class Value {
             return Expressions.fromString("null");
         }
     }
+
+    public static String reduceValueToString(Class<?> expectedType, Object o) {
+        if (o instanceof String) {
+            // Per the Java 3.10.6 Spec
+            String filteredString = ((String) o)
+                .replaceAll("([\b\t\n\f\r\"\']|\\\\)", "\\$1");
+            return "\"" + filteredString + "\"";
+        } else if (o instanceof Integer || o instanceof Short || o instanceof Boolean) {
+            return String.valueOf(o);
+        } else if (o instanceof Double) {
+            if (Double.isNaN((Double) o)) {
+                return "Double.NaN";
+            } else if (Double.isInfinite((Double) o)) {
+                if ((double) o < 0) {
+                    return "Double.NEGATIVE_INFINITY";
+                }
+
+                return "Double.POSITIVE_INFINITY";
+            }
+
+            return Double.toString(0);
+        } else if (o instanceof Long) {
+            return o + "L";
+        } else if (o instanceof Float) {
+            return o + "F";
+        } else if (o instanceof Byte) {
+            return Byte.toString((byte) o);
+        }
+
+        return "null";
+    }
 }

@@ -25,6 +25,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.net.URLClassLoader;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,7 +39,8 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private static final Pattern classEntryPatternToBeStripped = Pattern.compile("\\.class$");
     private static Map<String, JarClass<?>> classToJarClassMap;
 
-    private final Class<T> clazz;
+    private Class<T> clazz;
+    private static ClassLoader stubClassLoader;
     private Set<JarConstructor> constructors;
     private Set<JarMethod> methods;
     private Set<JarClass<?>> innerClasses;
@@ -55,6 +57,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         String convertedName = convertEntryNameToClassName(entryName);
         //noinspection unchecked
         clazz = (Class<T>) Class.forName(convertedName, false, classLoader);
+        stubClassLoader = classLoader;
     }
 
     private JarClass(@NotNull Class<T> clazz) {
@@ -293,7 +296,17 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     @Override
     public Expression compileToExpression() {
-        return compileClass(false, null);
+        try {
+            return compileClass(false, null);
+        } catch (NoClassDefFoundError ex) {
+            try {
+                clazz = (Class<T>) Class.forName(fullName(), false, new URLClassLoader(((URLClassLoader) stubClassLoader).getURLs(), stubClassLoader.getParent()));
+                return compileClass(false, null);
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                log.warn("Missing class definition for {}", fullName());
+                return StringExpression.EMPTY;
+            }
+        }
     }
 
     @NotNull

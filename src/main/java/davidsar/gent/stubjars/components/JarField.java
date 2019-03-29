@@ -14,17 +14,20 @@
 package davidsar.gent.stubjars.components;
 
 import davidsar.gent.stubjars.components.expressions.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 
 public class JarField extends JarModifiers implements CompileableExpression {
+    private static final Logger log = LoggerFactory.getLogger(JarClass.class);
     private final JarClass jarClass;
     private final Field field;
 
-    JarField(JarClass<?> clazz, Field method) {
+    JarField(JarClass<?> clazz, Field field) {
         this.jarClass = clazz;
-        this.field = method;
+        this.field = field;
     }
 
     @Override
@@ -52,12 +55,12 @@ public class JarField extends JarModifiers implements CompileableExpression {
         final Expression nameS = Expressions.fromString(name());
 
         final Expression assignmentS;
-        if (isFinal()) {
+        if (isFinal() || isStatic()) {
             assignmentS = Expressions.of(
                 Expressions.fromString(" = "),
                 Expressions.forType(
                     genericReturnType(),
-                    Value.defaultValueForType(genericReturnType(), getClazz())
+                    determineValueOfField()
                 )
             );
         } else {
@@ -68,6 +71,32 @@ public class JarField extends JarModifiers implements CompileableExpression {
             Expressions.of(security, finalS, staticS, volatileS, transientS, returnTypeS).asSpaceAfter(),
             nameS, assignmentS
         ).asStatement();
+    }
+
+    private Expression determineValueOfField() {
+        if (isStatic() && !(jarClass.isInnerClass())) {
+            try {
+                Class<?> expectedType = field.getType();
+                if (expectedType.isAssignableFrom(float.class) || expectedType.isAssignableFrom(Float.class) ||
+                    expectedType.isAssignableFrom(double.class) || expectedType.isAssignableFrom(Double.class) ||
+                    expectedType.isAssignableFrom(byte.class) || expectedType.isAssignableFrom(Byte.class) ||
+                    expectedType.isAssignableFrom(short.class) || expectedType.isAssignableFrom(Short.class) ||
+                    expectedType.isAssignableFrom(boolean.class) || expectedType.isAssignableFrom(Boolean.class) ||
+                    expectedType.isAssignableFrom(long.class) || expectedType.isAssignableFrom(Long.class) ||
+                    expectedType.isAssignableFrom(int.class) || expectedType.isAssignableFrom(Integer.class) ||
+                    expectedType.isAssignableFrom(String.class)) {
+                    field.setAccessible(true);
+                    final Object o = field.get(null);
+                    return Expressions.fromString(Value.reduceValueToString(expectedType, o));
+                }
+            } catch (IllegalAccessException | UnsatisfiedLinkError | NoClassDefFoundError | ExceptionInInitializerError e) {
+                log.warn("Could not determine the value of the static field \"{}\" from \"{}\". Reason: {}", name(), getClazz().fullName(), e.getMessage());
+            } catch (NullPointerException e) {
+                log.warn("Could not determine the value of the static field \"{}\" from \"{}\". Reason: Static field is instance field?", name(), getClazz().name());
+            }
+        }
+
+        return Value.defaultValueForType(genericReturnType(), getClazz());
     }
 
     JarClass<?> getClazz() {
