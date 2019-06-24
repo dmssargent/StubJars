@@ -232,7 +232,7 @@ public class StubJars {
          */
         void addClasspathJar(@NotNull File jar) throws IOException {
             if (!jar.exists()) {
-                throw new IOException("A provided classpath JAR doesn't exist. File: " + jar.getName());
+                throw new IOException("A provided classpath JAR doesn't exist. File: " + jar.getAbsolutePath());
             }
             classpathJars.add(JarFile.forFile(jar));
         }
