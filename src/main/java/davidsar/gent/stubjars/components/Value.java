@@ -48,23 +48,50 @@ class Value {
         }
 
         if (type.equals(int.class) || type.equals(Integer.class)) {
-            return Expressions.fromString("0");
+            if (constant) {
+                return Expressions.fromString("0");
+            }
+            return Expressions.fromString("Integer.valueOf(0)");
         } else if (type.equals(double.class) || type.equals(Double.class)) {
-            return Expressions.fromString("0.0");
+            if (constant) {
+                return Expressions.fromString("0.0");
+            }
+            return Expressions.fromString("Double.valueOf('\\0').doubleValue()");
         } else if (type.equals(long.class) || type.equals(Long.class)) {
-            return Expressions.fromString("0L");
+            if (constant) {
+                return Expressions.fromString("0L");
+            }
+            return Expressions.fromString("Long.valueOf('\\0').longValue()");
         } else if (type.equals(byte.class) || type.equals(Byte.class)) {
-            return Expressions.toCast(byte.class, 0);
+            if (constant) {
+                return Expressions.fromString("0");
+            }
+            return Expressions.toCast(byte.class, "Integer.valueOf(0).byteValue()");
         } else if (type.equals(short.class) || type.equals(Short.class)) {
-            return Expressions.toCast(short.class, 0);
+            if (constant) {
+                return Expressions.toCast(short.class, "0");
+            }
+            return Expressions.toCast(short.class, "Integer.valueOf(0).shortValue()");
         } else if (type.equals(boolean.class) || type.equals(Boolean.class)) {
-            return Expressions.fromString(Boolean.toString(false));
+            if (constant) {
+                return Expressions.fromString("false");
+            }
+            return Expressions.fromString("Boolean.valueOf(false).booleanValue()");
         } else if (type.equals(float.class) || type.equals(Float.class)) {
-            return Expressions.toCast(float.class, 0);
+            if (constant) {
+                return Expressions.fromString("0.0f");
+            }
+            return Expressions.toCast(float.class, "Float.valueOf('\\0').floatValue()");
         } else if (type.equals(char.class) || type.equals(Character.class)) {
-            return Expressions.toCast(char.class, 0);
+            if (constant) {
+                return Expressions.fromString("'\\0'");
+            }
+            return Expressions.toCast(char.class, "Character.valueOf('\\0').charValue()");
         } else if (type.equals(String.class)) {
-            return Expressions.fromString("\"\"");
+            if (constant) {
+                return Expressions.fromString("\"\"");
+            }
+            return Expressions.fromString("\"\".toString()");
         } else if (((Class) type).isArray()) {
             if (constant) {
                 return Expressions.fromString("{}");

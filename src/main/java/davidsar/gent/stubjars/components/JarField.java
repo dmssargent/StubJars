@@ -13,7 +13,11 @@
 
 package davidsar.gent.stubjars.components;
 
-import davidsar.gent.stubjars.components.expressions.*;
+import davidsar.gent.stubjars.components.expressions.CompileableExpression;
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.SecurityModifierExpression;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +52,7 @@ public class JarField extends JarModifiers implements CompileableExpression {
         // Figure method signature
         final Expression security = new SecurityModifierExpression(security());
         final Expression finalS = Expressions.whenWithSpace(isFinal(), StringExpression.FINAL);
-        final Expression staticS = Expressions.whenWithSpace(isStatic(), StringExpression.STATIC);
+        final Expression staticS = Expressions.whenWithSpace(isStatic() && !jarClass.isInnerClass(), StringExpression.STATIC);
         final Expression volatileS = Expressions.whenWithSpace(isVolatile(), StringExpression.VOLATILE);
         final Expression transientS = Expressions.whenWithSpace(isTransient(), StringExpression.TRANSIENT);
         final Expression returnTypeS = JarType.toExpression(genericReturnType(), getClazz());
