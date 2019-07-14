@@ -39,6 +39,8 @@ public final class StringExpression extends Expression implements FormattedExpre
     public static final Expression THROWS = new StringExpression(Constants.THROWS);
     public static final Expression VARARGS = new StringExpression(Constants.VARARGS);
     public static final Expression RETURN = new StringExpression(Constants.RETURN);
+    public static final Expression ANNOTATION_OVERRIDE = new StringExpression(Constants.ANNOTATION_OVERRIDE);
+    public static final Expression ANNOTATION_DEPRECATED = new StringExpression(Constants.ANNOTATION_DEPRECATED);
     static final Expression LEFT_PAREN = new StringExpression(Constants.LEFT_PAREN);
     static final Expression RIGHT_PAREN = new StringExpression(Constants.RIGHT_PAREN);
     public static final Expression SPACE = new StringExpression(Constants.SPACE);

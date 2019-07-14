@@ -13,12 +13,21 @@
 
 package davidsar.gent.stubjars.components;
 
-import davidsar.gent.stubjars.components.expressions.*;
+import davidsar.gent.stubjars.components.expressions.CompileableExpression;
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.MethodDeclarationExpression;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.*;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.Set;
 
@@ -80,10 +89,6 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
         }
 
         Expression methodDeclaration = MethodDeclarationExpression.from(this, isEnumField).getFormattedString();
-        if (isEnumField) {
-            int i = 1;
-            i += 1;
-        }
 
         // What should the method body be?
         final Expression stubMethod;
@@ -218,5 +223,9 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
 
     public JarClass<?> getParentClazz() {
         return parentClazz;
+    }
+
+    public AnnotatedElement method() {
+        return method;
     }
 }

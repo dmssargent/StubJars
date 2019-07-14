@@ -14,7 +14,14 @@
 package davidsar.gent.stubjars.components;
 
 import davidsar.gent.stubjars.Utils;
-import davidsar.gent.stubjars.components.expressions.*;
+import davidsar.gent.stubjars.components.expressions.AnnotationExpression;
+import davidsar.gent.stubjars.components.expressions.ClassHeaderExpression;
+import davidsar.gent.stubjars.components.expressions.CompileableExpression;
+import davidsar.gent.stubjars.components.expressions.EnumMembers;
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
+import davidsar.gent.stubjars.components.expressions.TypeExpression;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -26,7 +33,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.net.URLClassLoader;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -441,12 +454,19 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     @NotNull
     public Expression compileHeaderAnnotation() {
-        final Expression annotationS;
+        Expression annotationS;
         if (isAnnotation() && getClazz().isAnnotationPresent(Retention.class)) {
             RetentionPolicy retentionPolicy = getClazz().getAnnotation(Retention.class).value();
             annotationS = new AnnotationExpression(this, Retention.class, retentionPolicy.name());
+            if (getClazz().isAnnotationPresent(Deprecated.class)) {
+                annotationS = Expressions.of(StringExpression.ANNOTATION_DEPRECATED, StringExpression.SPACE, annotationS);
+            }
         } else {
-            annotationS = StringExpression.EMPTY;
+            if (getClazz().isAnnotationPresent(Deprecated.class)) {
+                annotationS = StringExpression.ANNOTATION_DEPRECATED;
+            } else {
+                annotationS = StringExpression.EMPTY;
+            }
         }
         return annotationS;
     }

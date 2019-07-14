@@ -18,6 +18,13 @@ public class MethodDeclarationExpression extends Expression implements Formatted
     public static MethodDeclarationExpression from(JarMethod method, boolean isEnumField) {
         // Figure out method signature
         List<Expression> signature = new ArrayList<>();
+        if (method.method().isAnnotationPresent(Deprecated.class)) {
+            signature.add(StringExpression.ANNOTATION_DEPRECATED);
+        }
+
+        if (method.method().isAnnotationPresent(Override.class)) {
+            signature.add(StringExpression.ANNOTATION_OVERRIDE);
+        }
 
         if (!method.getParentClazz().isInterface()) {
             signature.add(method.security().expression());

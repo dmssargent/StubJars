@@ -47,4 +47,6 @@ public class Constants {
     public static final String THROWS = "throws";
     public static final String VARARGS = "...";
     public static final String RETURN = "return";
+    public static final String ANNOTATION_DEPRECATED = "@Deprecated";
+    public static final String ANNOTATION_OVERRIDE = "@Override";
 }
