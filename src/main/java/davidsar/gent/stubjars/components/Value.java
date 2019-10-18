@@ -143,7 +143,7 @@ class Value {
                 return "Double.POSITIVE_INFINITY";
             }
 
-            return Double.toString(0);
+            return Double.toString((Double) o);
         } else if (o instanceof Long) {
             return o + "L";
         } else if (o instanceof Float) {
