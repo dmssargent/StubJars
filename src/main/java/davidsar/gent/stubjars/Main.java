@@ -63,7 +63,7 @@ class Main {
             System.exit(1);
         }
 
-        builder.addJars(files.toArray(new File[] {}));
+        builder.addJarsAndAars(files.toArray(new File[] {}));
     }
 
     @NotNull
@@ -103,15 +103,21 @@ class Main {
     private static void parseArg(StubJars.Builder builder, String arg) throws IOException {
         if (arg.startsWith("-cp=")) {
             String path = arg.split("=", -1)[1];
-            final String[] classpathJars;
+            final String[] filePaths;
             if (path.contains(File.pathSeparator)) {
-                classpathJars = path.split(File.pathSeparator);
+                filePaths = path.split(File.pathSeparator);
             } else {
-                classpathJars = new String[]{path};
+                filePaths = new String[]{path};
             }
 
-            for (String jarPath : classpathJars) {
-                builder.addClasspathJar(new File(jarPath));
+            for (String filePath : filePaths) {
+                if (filePath.toLowerCase().endsWith(".jar")) {
+                    builder.addClasspathJar(new File(filePath));
+                } else if (filePath.toLowerCase().endsWith(".aar")) {
+                    builder.addClasspathAar(new File(filePath));
+                } else {
+                    log.error("ignored: unknown classpath file: " + filePath);
+                }
             }
         } else if (arg.equals("--build")) {
             //shouldBuild = true;
