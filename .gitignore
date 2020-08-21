@@ -2,3 +2,5 @@
 out
 build/
 *.class
+/.gradle
+/local.properties

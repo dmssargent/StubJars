@@ -13,18 +13,15 @@
 
 package davidsar.gent.stubjars;
 
-import davidsar.gent.stubjars.components.JarClass;
-import davidsar.gent.stubjars.components.SecurityModifier;
-import davidsar.gent.stubjars.components.writer.JavaClassWriter;
-import davidsar.gent.stubjars.components.writer.Writer;
-import davidsar.gent.stubjars.components.writer.WriterThread;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,6 +32,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+
+import davidsar.gent.stubjars.components.JarClass;
+import davidsar.gent.stubjars.components.SecurityModifier;
+import davidsar.gent.stubjars.components.writer.JavaClassWriter;
+import davidsar.gent.stubjars.components.writer.Writer;
+import davidsar.gent.stubjars.components.writer.WriterThread;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -222,6 +227,7 @@ public class StubJars {
          * @param jar a {@link File} representing a JAR file
          */
         void addJar(@NotNull File jar) {
+            log.info("adding jar: " + jar.getAbsolutePath());
             jars.add(JarFile.forFile(jar));
         }
 
@@ -234,20 +240,55 @@ public class StubJars {
             if (!jar.exists()) {
                 throw new IOException("A provided classpath JAR doesn't exist. File: " + jar.getAbsolutePath());
             }
+            log.info("adding classPathJar: " + jar.getAbsolutePath());
             classpathJars.add(JarFile.forFile(jar));
         }
 
         /**
+         * Add a .AAR file that contains a "classes.jar" that provides classpath info.
+         */
+        public void addClasspathAar(@NotNull File aar) throws IOException {
+            addClasspathJar(extractClassesJar(aar));
+        }
+
+        private File extractClassesJar(@NotNull File aar) throws IOException {
+            ZipFile zipFile = new ZipFile(aar);
+            ZipEntry classesJar = zipFile.getEntry("classes.jar");
+            String root = aar.getName();
+            root = root.substring(0, root.lastIndexOf("."));
+            File outputFile = File.createTempFile(root + "-classes-", ".jar");
+            outputFile.deleteOnExit();
+            try (InputStream inStream = zipFile.getInputStream(classesJar)) {
+                try (FileOutputStream outStream = new FileOutputStream(outputFile)) {
+                    byte[] buffer = new byte[1024];
+                    for (;;) {
+                        int cbRead = inStream.read(buffer);
+                        if (cbRead <= 0)
+                            break;
+                        outStream.write(buffer, 0, cbRead);
+                    }
+                }
+            }
+            zipFile.close();
+            return outputFile;
+        }
+
+
+        /**
          * Adds JAR files for {@link StubJars} to manage.
          *
-         * @param jars the {@link File}s representing a JAR files
+         * @param jarsAndAars the {@link File}s representing a JAR or AAR file
          */
-        void addJars(@NotNull File... jars) throws IOException {
-            for (File jar : jars) {
-                if (!jar.exists()) {
-                    throw new IOException("A provided JAR doesn't exist. File: " + jar.getName());
+        void addJarsAndAars(@NotNull File... jarsAndAars) throws IOException {
+            for (File file : jarsAndAars) {
+                if (!file.exists()) {
+                    throw new IOException("A provided JAR doesn't exist. File: " + file.getName());
                 }
-                addJar(jar);
+                if (file.getName().toLowerCase().endsWith(".aar")) {
+                    addJar(extractClassesJar(file));
+                } else {
+                    addJar(file);
+                }
             }
         }
 
@@ -261,6 +302,7 @@ public class StubJars {
             ClassLoader classLoader = JarFile.createClassLoaderFromJars(cpClassLoader, jars.toArray(new JarFile[0]));
             List<JarClass<?>> clazzes = Collections.synchronizedList(new ArrayList<>());
             for (JarFile jar : jars) {
+                log.info("loading jar: " + jar.getJar().getAbsolutePath());
                 final Set<JarClass<?>> classes;
                 try {
                     classes = jar.getClasses(classLoader);

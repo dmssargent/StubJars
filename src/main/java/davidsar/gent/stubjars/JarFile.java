@@ -13,10 +13,10 @@
 
 package davidsar.gent.stubjars;
 
-import davidsar.gent.stubjars.components.JarClass;
-import davidsar.gent.stubjars.utils.Streams;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +30,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import davidsar.gent.stubjars.components.JarClass;
+import davidsar.gent.stubjars.utils.Streams;
+
 public class JarFile {
+    private static final Logger log = LoggerFactory.getLogger(JarFile.class);
     private static final Map<File, JarFile> jarFiles = new HashMap<>();
     private final File jar;
 
@@ -72,10 +76,15 @@ public class JarFile {
                     try {
                         return new JarClass<>(loader, entry.getName());
                     } catch (ClassNotFoundException e) {
-                        throw new RuntimeException(e);
+                        log.error("unable to load class: not found: ignored: " + entry.getName());
+                        return null;
+                    } catch (LinkageError e) {
+                        log.error("unable to load class: linkage error: ignored: " + entry.getName());
+                        return null;
                     }
                 })
-            .flatMap(clazz -> Stream.concat(Stream.of(clazz), findInnerClasses(clazz)))
+                .filter(clazz -> clazz != null)
+                .flatMap(clazz -> Stream.concat(Stream.of(clazz), findInnerClasses(clazz)))
                 .collect(Collectors.toSet());
     }
 
