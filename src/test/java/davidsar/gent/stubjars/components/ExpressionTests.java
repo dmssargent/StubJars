@@ -13,7 +13,6 @@
 
 package davidsar.gent.stubjars.components;
 
-import static davidsar.gent.stubjars.components.expressions.Expressions.of;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -54,7 +53,7 @@ public class ExpressionTests {
 
         assertThat(block.children(),
             is(Arrays.asList(StringExpression.LEFT_CURLY, StringExpression.NEW_LINE,
-                of(of(StringExpression.INDENT, Expressions.stringAsStatement(statement))),
+                Expressions.of(Expressions.of(StringExpression.INDENT, Expressions.stringAsStatement(statement))),
                 StringExpression.RIGHT_CURLY, StringExpression.NEW_LINE)));
     }
 

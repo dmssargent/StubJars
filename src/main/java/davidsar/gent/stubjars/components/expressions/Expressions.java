@@ -141,9 +141,18 @@ public final class Expressions {
         return new StringExpression(string);
     }
 
+    public static Expression fromString(String... elements) {
+        StringBuilder result = new StringBuilder();
+        for (String element : elements) {
+            result.append(element);
+        }
+        return Expressions.fromString(result.toString());
+    }
+
     public static Expression[] flatten(Collection<Expression> children) {
         return flatten(children.stream());
     }
+
 
     private static Expression[] flatten(@NotNull Stream<Expression> expressionStream) {
         return expressionStream.flatMap(expression -> {
@@ -153,13 +162,5 @@ public final class Expressions {
 
             return Stream.of(expression);
         }).toArray(Expression[]::new);
-    }
-
-    public static Expression fromString(String... elements) {
-        StringBuilder result = new StringBuilder();
-        for (String element : elements) {
-            result.append(element);
-        }
-        return Expressions.fromString(result.toString());
     }
 }
