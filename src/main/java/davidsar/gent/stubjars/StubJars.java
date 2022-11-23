@@ -23,10 +23,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -34,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 import davidsar.gent.stubjars.components.JarClass;
 import davidsar.gent.stubjars.components.SecurityModifier;
@@ -235,6 +239,29 @@ public class StubJars {
             String line;
             while ((line = reader.readLine()) != null) {
                 log.error(line);
+            }
+        }
+
+        var entries = new TreeMap<String, ZipEntry>();
+        var time = FileTime.fromMillis(0);
+        try  (var jarFile = new java.util.jar.JarFile(jarName)) {
+            var jarEntries = jarFile.entries();
+            while (jarEntries.hasMoreElements()) {
+                var jarEntry = jarEntries.nextElement();
+                jarEntry
+                    .setCreationTime(time)
+                    .setLastAccessTime(time)
+                    .setTime(0);
+                jarEntry.setLastModifiedTime(time);
+                jarEntry.setMethod(ZipEntry.DEFLATED);
+                entries.put(jarEntry.getName(), jarEntry);
+            }
+        }
+
+        try (var fileOutputStream = new FileOutputStream(jarName)) {
+            var zipStream = new ZipOutputStream(fileOutputStream);
+            for (var entry : entries.values()) {
+                zipStream.putNextEntry(entry);
             }
         }
     }
