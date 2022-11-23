@@ -120,7 +120,7 @@ class Main {
                 }
             }
         } else if (arg.equals("--build")) {
-            //shouldBuild = true;
+            shouldBuild = true;
         }
     }
 }
