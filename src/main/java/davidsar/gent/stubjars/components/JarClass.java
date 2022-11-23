@@ -36,6 +36,7 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -199,7 +200,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return Arrays.stream(clazz.getDeclaredFields())
             .map(field -> new JarField(this, field))
             .filter(field -> field.security() != SecurityModifier.PRIVATE)
-            .collect(Collectors.toSet());
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /**
@@ -228,7 +229,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                 .filter(method -> method.security() != SecurityModifier.PRIVATE)
                 .filter(method -> !method.isSynthetic())
                 .filter(JarMethod::shouldIncludeStaticMethod)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         }
         return methods;
     }
