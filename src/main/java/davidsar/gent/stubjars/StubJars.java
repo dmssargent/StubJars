@@ -209,6 +209,36 @@ public class StubJars {
         }
     }
 
+    public void generateJarForGeneratedCode() throws IOException, InterruptedException {
+        File javaHomeBin = Utils.getJavaHomeBinFromEnvironment();
+
+        List<String> jarProcessArgs = new ArrayList<>();
+        jarProcessArgs.add(new File(javaHomeBin, "jar").getPath());
+        jarProcessArgs.add("cf");
+        String jarName = "stub-jar-classes.jar";
+        jarProcessArgs.add(jarName);
+        jarProcessArgs.add("-C");
+        jarProcessArgs.add(BUILD_DIR.getPath());
+        jarProcessArgs.add(".");
+
+        Process javac = new ProcessBuilder(jarProcessArgs)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start();
+
+        if (javac.waitFor() == 0) {
+            return;
+        }
+
+        log.error("jar failed with error code {}", javac.exitValue());
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(javac.getInputStream(), UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                log.error(line);
+            }
+        }
+    }
+
     /**
      * Creates new {@link StubJars} instances.
      */

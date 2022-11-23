@@ -25,6 +25,7 @@ import java.util.List;
 class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
     private static boolean shouldBuild = false;
+    private static boolean shouldJar = false;
 
     public static void main(String... args) throws IOException {
         StubJars.Builder builder = StubJars.builder();
@@ -34,6 +35,9 @@ class Main {
         createSourceFiles(stubJars);
         if (shouldBuild) {
             compileGeneratedCode(stubJars);
+        }
+        if (shouldJar) {
+            generateStubsJarForGeneratedCode(stubJars);
         }
 
         log.info("StubJars has finished");
@@ -100,6 +104,20 @@ class Main {
         log.info("Compilation finished");
     }
 
+    private static void generateStubsJarForGeneratedCode(StubJars build) {
+        log.info("Compiling stub_src files");
+        try {
+            build.generateJarForGeneratedCode();
+        } catch (InterruptedException ex) {
+            log.warn("Compilation was interrupted");
+            System.exit(1);
+        } catch (IOException ex) {
+            log.error("Failed to execute jar", ex);
+            System.exit(1);
+        }
+        log.info("Compilation finished");
+    }
+
     private static void parseArg(StubJars.Builder builder, String arg) throws IOException {
         if (arg.startsWith("-cp=")) {
             String path = arg.split("=", -1)[1];
@@ -121,6 +139,8 @@ class Main {
             }
         } else if (arg.equals("--build")) {
             shouldBuild = true;
+        } else if (arg.equals("--jar")) {
+            shouldJar = true;
         }
     }
 }
