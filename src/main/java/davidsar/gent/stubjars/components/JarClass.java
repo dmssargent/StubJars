@@ -272,7 +272,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     boolean hasMethod(@NotNull Method method) {
         try {
-            clazz.getDeclaredMethod(method.getName(), method.getParameterTypes());
+            var ignored = clazz.getDeclaredMethod(method.getName(), method.getParameterTypes());
             return true;
         } catch (NoSuchMethodException e) {
             return false;
@@ -316,7 +316,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                 clazz = (Class<T>) Class.forName(fullName(), false, new URLClassLoader(((URLClassLoader) stubClassLoader).getURLs(), stubClassLoader.getParent()));
                 return compileClass(false, null);
             } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                log.warn("Missing class definition for {}", fullName());
+                log.warn("Missing class definition for {}", fullName(), e);
                 return StringExpression.EMPTY;
             }
         }
@@ -361,7 +361,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                     Class<?> superClazz = field.getClazz().extendsClass();
                     if (superClazz != null) {
                         try {
-                            superClazz.getDeclaredField(field.name());
+                            var ignored = superClazz.getDeclaredField(field.name());
                             return false;
                         } catch (NoSuchFieldException ignored) {
                         }

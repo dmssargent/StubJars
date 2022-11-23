@@ -19,19 +19,14 @@ public class TreeFormatter {
         List<Expression> currentLine = new ArrayList<>();
         int currentIndentLevel = 0;
         for (Expression child : flattenToAtomicExpressions(expression)) {
-            if (child.equals(StringExpression.SPACE) ||
-                child.equals(StringExpression.NEW_LINE) ||
-                child.equals(StringExpression.EMPTY) ||
-                child.equals(StringExpression.INDENT)) {
+            if (child.equals(StringExpression.SPACE) || child.equals(StringExpression.NEW_LINE) || child.equals(StringExpression.EMPTY) || child.equals(StringExpression.INDENT)) {
                 continue;
             }
             currentLine.add(child);
             if (child.equals(StringExpression.RIGHT_CURLY)) {
                 currentIndentLevel--;
             }
-            if (child.equals(StringExpression.SEMICOLON) ||
-                child.equals(StringExpression.LEFT_CURLY) ||
-                child.equals(StringExpression.RIGHT_CURLY)) {
+            if (child.equals(StringExpression.SEMICOLON) || child.equals(StringExpression.LEFT_CURLY) || child.equals(StringExpression.RIGHT_CURLY)) {
                 lines.add(new Line(currentIndentLevel, currentLine).toString());
                 currentLine = new ArrayList<>();
             }

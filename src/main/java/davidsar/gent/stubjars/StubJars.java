@@ -263,8 +263,9 @@ public class StubJars {
                     byte[] buffer = new byte[1024];
                     for (;;) {
                         int cbRead = inStream.read(buffer);
-                        if (cbRead <= 0)
+                        if (cbRead <= 0) {
                             break;
+                        }
                         outStream.write(buffer, 0, cbRead);
                     }
                 }

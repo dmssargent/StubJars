@@ -22,7 +22,11 @@ import davidsar.gent.stubjars.components.writer.Constants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.*;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -70,13 +74,13 @@ public class JarType {
         return toExpression(type, against, false, null).toString();
     }
 
-    public static TypeExpression toExpression(@NotNull Type type, JarClass<?> against) {
-        return toExpression(type, against, false, null);
-    }
-
     @NotNull
     public static String toString(@NotNull Type type, @NotNull JarClass<?> against, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
         return toExpression(type, against, keepSimple, resolver).toString();
+    }
+
+    public static TypeExpression toExpression(@NotNull Type type, JarClass<?> against) {
+        return toExpression(type, against, false, null);
     }
 
     public static TypeExpression toExpression(@NotNull Type type, JarClass<?> against, boolean keepSimple, @Nullable Function<TypeVariable, String> resolver) {
@@ -166,7 +170,7 @@ public class JarType {
                 )
             ));
         } else {
-            throw new UnsupportedOperationException(type.getClass().getName());
+            throw new UnsupportedOperationException(type.getRawType().getTypeName());
         }
 
         return ownerTypeExpression;

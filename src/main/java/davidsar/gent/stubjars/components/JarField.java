@@ -60,40 +60,25 @@ public class JarField extends JarModifiers implements CompileableExpression {
 
         final Expression assignmentS;
         if (isFinal() || isStatic()) {
-            assignmentS = Expressions.of(
-                Expressions.fromString(" = "),
-                Expressions.forType(
-                    genericReturnType(),
-                    determineValueOfField()
-                )
-            );
+            assignmentS = Expressions.of(Expressions.fromString(" = "), Expressions.forType(genericReturnType(), determineValueOfField()));
         } else {
             assignmentS = StringExpression.EMPTY;
         }
 
-        return Expressions.of(
-            Expressions.of(security, finalS, staticS, volatileS, transientS, returnTypeS).asSpaceAfter(),
-            nameS, assignmentS
-        ).asStatement();
+        return Expressions.of(Expressions.of(security, finalS, staticS, volatileS, transientS, returnTypeS).asSpaceAfter(), nameS, assignmentS).asStatement();
     }
 
     private Expression determineValueOfField() {
         if (isStatic() && !(jarClass.isInnerClass())) {
             try {
                 Class<?> expectedType = field.getType();
-                if (expectedType.isAssignableFrom(float.class) || expectedType.isAssignableFrom(Float.class) ||
-                    expectedType.isAssignableFrom(double.class) || expectedType.isAssignableFrom(Double.class) ||
-                    expectedType.isAssignableFrom(byte.class) || expectedType.isAssignableFrom(Byte.class) ||
-                    expectedType.isAssignableFrom(short.class) || expectedType.isAssignableFrom(Short.class) ||
-                    expectedType.isAssignableFrom(boolean.class) || expectedType.isAssignableFrom(Boolean.class) ||
-                    expectedType.isAssignableFrom(long.class) || expectedType.isAssignableFrom(Long.class) ||
-                    expectedType.isAssignableFrom(int.class) || expectedType.isAssignableFrom(Integer.class) ||
-                    expectedType.isAssignableFrom(String.class)) {
+                if (expectedType.isAssignableFrom(float.class) || expectedType.isAssignableFrom(Float.class) || expectedType.isAssignableFrom(double.class) || expectedType.isAssignableFrom(Double.class) || expectedType.isAssignableFrom(byte.class) || expectedType.isAssignableFrom(Byte.class) || expectedType.isAssignableFrom(short.class) || expectedType.isAssignableFrom(Short.class) || expectedType.isAssignableFrom(boolean.class) || expectedType.isAssignableFrom(Boolean.class) || expectedType.isAssignableFrom(long.class) || expectedType.isAssignableFrom(Long.class) || expectedType.isAssignableFrom(int.class) || expectedType.isAssignableFrom(Integer.class) || expectedType.isAssignableFrom(String.class)) {
                     field.setAccessible(true);
                     final Object o = field.get(null);
                     return Expressions.fromString(Value.reduceValueToString(expectedType, o));
                 }
-            } catch (IllegalAccessException | UnsatisfiedLinkError | NoClassDefFoundError | ExceptionInInitializerError e) {
+            } catch (IllegalAccessException | UnsatisfiedLinkError | NoClassDefFoundError |
+                     ExceptionInInitializerError e) {
                 log.warn("Could not determine the value of the static field \"{}\" from \"{}\". Reason: {}", name(), getClazz().fullName(), e.getMessage());
             } catch (NullPointerException e) {
                 log.warn("Could not determine the value of the static field \"{}\" from \"{}\". Reason: Static field is instance field?", name(), getClazz().name());

@@ -144,7 +144,7 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
         }
 
         try {
-            declaringClass.getDeclaredMethod(name(), parameterTypes());
+            var ignored = declaringClass.getDeclaredMethod(name(), parameterTypes());
             return false;
         } catch (NoSuchMethodException ignored) {
             // log.debug("method \"{}\" does not exist on enum \"{}\"", name(), parentClazz.name());
