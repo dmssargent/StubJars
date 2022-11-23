@@ -191,6 +191,10 @@ public class StubJars {
                     .collect(Collectors.joining(File.pathSeparator))
             );
         }
+        javacProcessArgs.add("-source");
+        javacProcessArgs.add("8");
+        javacProcessArgs.add("-source");
+        javacProcessArgs.add("8");
         javacProcessArgs.add("-d");
         javacProcessArgs.add(BUILD_DIR.getPath());
         javacProcessArgs.add(String.format("@%s", SOURCES_LIST_FILE.getPath()));
