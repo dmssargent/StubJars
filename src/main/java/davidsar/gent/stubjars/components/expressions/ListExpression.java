@@ -72,7 +72,7 @@ public class ListExpression extends Expression implements FormattedExpression {
             }
         });
 
-        return expressionChildren;
+        return Collections.unmodifiableList(expressionChildren);
     }
 
     @Override
