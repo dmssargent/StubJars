@@ -25,6 +25,10 @@ jar {
     manifest {
         attributes("Main-Class": mainClassName)
     }
+    from {
+        configurations.runtimeClasspath.collect { zipTree(it) }
+    }
+    duplicatesStrategy 'exclude'
 }
 
 tasks.withType(AbstractArchiveTask) {
