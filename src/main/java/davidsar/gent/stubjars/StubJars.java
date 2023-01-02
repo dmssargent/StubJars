@@ -56,7 +56,6 @@ public class StubJars {
     private static final Logger log = LoggerFactory.getLogger(StubJars.class);
     private final List<JarClass<?>> clazzes;
     private final List<JarFile> classpathJars;
-    private final ClassLoader stubClassLoader;
     private List<Package> packages;
     private static final File SOURCE_DIR = new File("stub_src");
     private static final File BUILD_DIR = new File(SOURCE_DIR, "build");
@@ -65,10 +64,9 @@ public class StubJars {
     private final int numberOfCompilerThreads = 4;
 
 
-    private StubJars(@NotNull List<JarClass<?>> clazzes, List<JarFile> classpathJars, ClassLoader classLoader) {
+    private StubJars(@NotNull List<JarClass<?>> clazzes, List<JarFile> classpathJars) {
         this.clazzes = clazzes;
         this.classpathJars = classpathJars;
-        this.stubClassLoader = classLoader;
     }
 
     /**
@@ -378,7 +376,7 @@ public class StubJars {
             }
 
             JarClass.loadJarClassList(clazzes);
-            return new StubJars(clazzes, classpathJars, classLoader);
+            return new StubJars(clazzes, classpathJars);
         }
     }
 
