@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.Set;
 
 public class JarMethod extends JarModifiers implements CompileableExpression {
-    private static final Logger log = LoggerFactory.getLogger(JarMethod.class);
     private final JarClass<?> parentClazz;
     private final Method method;
     private Expression[] cachedParameters;

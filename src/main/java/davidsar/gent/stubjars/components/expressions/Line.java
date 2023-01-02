@@ -13,14 +13,6 @@ public class Line {
         this.indentLevel = indentLevel;
     }
 
-    private void indent() {
-        this.indentLevel++;
-    }
-
-    private void setIndentLevel(int indentLevel) {
-        this.indentLevel = indentLevel;
-    }
-
     @Override
     public String toString() {
         return buildIndent() + buildLineContents();

@@ -21,10 +21,8 @@ import java.util.List;
 
 public class TypeExpression extends Expression implements FormattedExpression {
     private final Expression expression;
-    private final Type type;
 
     protected TypeExpression(@NotNull Type type, Expression expression) {
-        this.type = type;
         this.expression = expression;
     }
 
