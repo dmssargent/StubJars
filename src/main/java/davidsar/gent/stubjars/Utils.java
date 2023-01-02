@@ -27,7 +27,7 @@ public class Utils {
     private static Logger log = LoggerFactory.getLogger(Utils.class);
 
     @NotNull
-    public static <T> Expression arrayToListExpression(Expression[] expressions) {
+    public static Expression arrayToListExpression(Expression[] expressions) {
         return arrayToListExpression(expressions, x -> x);
     }
 

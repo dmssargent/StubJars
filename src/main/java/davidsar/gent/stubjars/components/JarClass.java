@@ -55,7 +55,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private static Map<String, JarClass<?>> classToJarClassMap;
 
     private Class<T> clazz;
-    private static ClassLoader stubClassLoader;
+    private ClassLoader stubClassLoader;
     private Map<String, JarConstructor> constructors;
     private Map<String, JarMethod> methods;
     private Map<String, JarClass<?>> innerClasses;
@@ -440,7 +440,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     @NotNull
     public Expression compileHeaderExtends() {
         Class<?> extendsClazz = extendsClass();
-        if (extendsClazz != null && !(extendsClazz.equals(Enum.class))) {
+        if (extendsClazz != null && !extendsClazz.equals(Enum.class)) {
             return Expressions.of(
                 StringExpression.EXTENDS,
                 StringExpression.SPACE,

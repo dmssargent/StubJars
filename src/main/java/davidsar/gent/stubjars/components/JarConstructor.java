@@ -180,8 +180,8 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
             // We need to call some form of the default constructor, so we can compile code
             JarConstructor<?>[] declaredConstructors;
             JarClass<?> jarClass = JarClass.forClass(clazzSuperClass);
-            declaredConstructors = jarClass.constructors().toArray(new JarConstructor<?>[0]);
-            if (declaredConstructors.length <= 0) {
+            declaredConstructors = jarClass.constructors().values().toArray(new JarConstructor<?>[0]);
+            if (declaredConstructors.length == 0) {
                 throw new UnsupportedOperationException("Cannot infer super cotr to write for " + clazz.fullName());
             }
 

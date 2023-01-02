@@ -69,7 +69,7 @@ public class JarField extends JarModifiers implements CompileableExpression {
     }
 
     private Expression determineValueOfField() {
-        if (isStatic() && !(jarClass.isInnerClass())) {
+        if (isStatic() && !jarClass.isInnerClass()) {
             try {
                 Class<?> expectedType = field.getType();
                 if (expectedType.isAssignableFrom(float.class) || expectedType.isAssignableFrom(Float.class) || expectedType.isAssignableFrom(double.class) || expectedType.isAssignableFrom(Double.class) || expectedType.isAssignableFrom(byte.class) || expectedType.isAssignableFrom(Byte.class) || expectedType.isAssignableFrom(short.class) || expectedType.isAssignableFrom(Short.class) || expectedType.isAssignableFrom(boolean.class) || expectedType.isAssignableFrom(Boolean.class) || expectedType.isAssignableFrom(long.class) || expectedType.isAssignableFrom(Long.class) || expectedType.isAssignableFrom(int.class) || expectedType.isAssignableFrom(Integer.class) || expectedType.isAssignableFrom(String.class)) {
