@@ -34,7 +34,7 @@ public class TreeFormatter {
                 currentIndentLevel++;
             }
         }
-        return lines;
+        return Collections.unmodifiableList(lines);
     }
 
     private static List<Expression> flattenToAtomicExpressions(Expression expression) {
@@ -50,6 +50,6 @@ public class TreeFormatter {
         for (Expression child : expression.children()) {
             result.addAll(flattenToAtomicExpressions(child));
         }
-        return result;
+        return Collections.unmodifiableList(result);
     }
 }
