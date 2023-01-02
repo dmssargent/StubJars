@@ -90,9 +90,9 @@ public class JarFile {
 
     @NotNull
     private Stream<JarClass<?>> findInnerClasses(@NotNull JarClass<?> jarClass) {
-        return jarClass.innerClasses().stream()
+        return jarClass.innerClasses().values().stream()
             .flatMap(clazz -> {
-                Stream<JarClass<?>> stream = clazz.innerClasses().stream();
+                Stream<JarClass<?>> stream = clazz.innerClasses().values().stream();
                 Stream<JarClass<?>> innerClasses = findInnerClasses(clazz);
                 return Stream.concat(Stream.concat(Stream.of(clazz), stream), innerClasses);
                 });

@@ -167,8 +167,8 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
             }
         }
 
-        Set<JarClass> jarClasses = getParentClazz().allSuperClassesAndInterfaces();
-        long count = jarClasses.stream()
+        var jarClasses = getParentClazz().allSuperClassesAndInterfaces();
+        long count = jarClasses.values().stream()
                 .filter(x -> x.hasMethod(method))
                 .count();
         return count == 0 && shouldIncludeMethod();
