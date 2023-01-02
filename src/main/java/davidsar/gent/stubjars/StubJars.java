@@ -247,24 +247,26 @@ public class StubJars {
         }
 
         var entries = new TreeMap<String, ZipEntry>();
-        var time = FileTime.fromMillis(0);
+        var time = FileTime.from(Instant.parse("2008-02-01T00:00:00.00Z"));
         try  (var jarFile = new java.util.jar.JarFile(jarName)) {
             var jarEntries = jarFile.entries();
             while (jarEntries.hasMoreElements()) {
                 var jarEntry = jarEntries.nextElement();
                 jarEntry
-                    .setCreationTime(time)
-                    .setLastAccessTime(time)
-                    .setTime(0);
+                    .setCreationTime(time);
                 jarEntry.setLastModifiedTime(time);
                 jarEntry.setMethod(ZipEntry.DEFLATED);
                 entries.put(jarEntry.getName(), jarEntry);
             }
         }
+        new File(jarName).delete();
 
         try (var fileOutputStream = new FileOutputStream(jarName)) {
             var zipStream = new ZipOutputStream(fileOutputStream);
             for (var entry : entries.values()) {
+                if (entry.getLastModifiedTime() == null) {
+                    throw new RuntimeException("issue found");
+                }
                 zipStream.putNextEntry(entry);
             }
         }

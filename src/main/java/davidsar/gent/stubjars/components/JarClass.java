@@ -36,11 +36,12 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -55,9 +56,9 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
     private Class<T> clazz;
     private static ClassLoader stubClassLoader;
-    private Set<JarConstructor> constructors;
-    private Set<JarMethod> methods;
-    private Set<JarClass<?>> innerClasses;
+    private Map<String, JarConstructor> constructors;
+    private Map<String, JarMethod> methods;
+    private Map<String, JarClass<?>> innerClasses;
 
     /**
      * Represents a {@link Class} for in StubJars.
@@ -196,11 +197,11 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return clazz.getModifiers();
     }
 
-    private Set<JarField> fields() {
+    private Map<String, JarField> fields() {
         return Arrays.stream(clazz.getDeclaredFields())
             .map(field -> new JarField(this, field))
             .filter(field -> field.security() != SecurityModifier.PRIVATE)
-            .collect(Collectors.toCollection(LinkedHashSet::new));
+            .collect(Collectors.toMap(x -> x.compileToExpression().toString(), Function.identity(), (x, y) -> y, TreeMap::new));
     }
 
     /**
@@ -209,27 +210,26 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
      *
      * @return the {@code Set} of inner classes
      */
-    @NotNull
-    public Set<JarClass<?>> innerClasses() {
+    public Map<String, JarClass<?>> innerClasses() {
         if (innerClasses == null) {
             innerClasses = Arrays.stream(clazz.getDeclaredClasses())
                 .filter(clazz -> !clazz.isLocalClass())
                 .filter(clazz -> !clazz.isAnonymousClass())
-                .map(JarClass::forClass).collect(Collectors.toSet());
+                .map(JarClass::forClass).collect(Collectors.toMap(x -> x.clazz.getName(), Function.identity(), (x, y) -> y, TreeMap::new));
         }
 
         return innerClasses;
     }
 
     @NotNull
-    private Set<JarMethod> methods() {
+    private Map<String, JarMethod> methods() {
         if (methods == null) {
             methods = Arrays.stream(clazz.getDeclaredMethods())
                 .map(method -> new JarMethod(this, method))
                 .filter(method -> method.security() != SecurityModifier.PRIVATE)
                 .filter(method -> !method.isSynthetic())
                 .filter(JarMethod::shouldIncludeStaticMethod)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+                .collect(Collectors.toMap(x -> x.compileToExpression().toString(), x -> x, (x, y) -> y,  TreeMap::new));
         }
         return methods;
     }
@@ -244,8 +244,8 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return clazz.hashCode();
     }
 
-    @NotNull Set<JarClass> allSuperClassesAndInterfaces() {
-        return allSuperClassesAndInterfaces(clazz).stream().map(JarClass::forClass).collect(Collectors.toSet());
+    @NotNull Map<String, JarClass> allSuperClassesAndInterfaces() {
+        return allSuperClassesAndInterfaces(clazz).stream().map(JarClass::forClass).collect(Collectors.toMap(x -> x.clazz.getName(), Function.identity(), (x, y) -> y, TreeMap::new));
     }
 
     @NotNull
@@ -285,24 +285,24 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return clazz.getGenericSuperclass();
     }
 
-    @NotNull Set<JarConstructor> constructors() {
+    @NotNull Map<String, JarConstructor> constructors() {
         //noinspection unchecked
         if (constructors == null) {
             //noinspection unchecked
             constructors = Arrays.stream(clazz.getDeclaredConstructors())
                     .map(x -> new JarConstructor(this, x))
                     .filter(JarConstructor::shouldIncludeCotr)
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toMap(x -> x.compileToExpression().toString(), Function.identity(), (x, y) -> y, TreeMap::new));
 
-            constructors.stream()
+            constructors.values().stream()
                     .filter(JarConstructor::canRewriteConstructorParams).findAny()
                     .ifPresent(jarConstructor -> constructors = Stream.concat(
-                        constructors.stream()
+                        constructors.values().stream()
                             .filter(constructor -> !(constructor.canRewriteConstructorParams()
                                 || constructor.parameters().length == 0)
                             ),
                             Stream.of(jarConstructor)
-                    ).collect(Collectors.toSet()));
+                    ).collect(Collectors.toMap(x -> x.compileToExpression().toString(), Function.identity(), (x, y) -> y, TreeMap::new)));
         }
 
         return constructors;
@@ -355,8 +355,10 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return new ClassExpression(methods, enumMembers, fields, innerClasses, Expressions.of(clazzHeader));
     }
 
+
+    @SuppressWarnings("EmptyCatch")
     private Expression compileFields(boolean isEnumConstant) {
-        return Expressions.indent(fields().stream()
+        return Expressions.indent(fields().values().stream()
             .filter(field -> !((isEnumConstant || isEnum()) && field.isStatic()) && !field.isSynthetic())
                 .filter(field -> {
                     Class<?> superClazz = field.getClazz().extendsClass();
@@ -375,19 +377,19 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     }
 
     private Expression compileMethods(boolean isEnumConstant) {
-        return Expressions.indent(methods().stream()
+        return Expressions.indent(methods().values().stream()
             .map(method -> method.compileToExpression(isEnumConstant))
             .toArray(Expression[]::new));
     }
 
     @NotNull
     private Expression compileInnerClasses(boolean isEnumConstant) {
-        Set<JarClass<?>> innerClasses = innerClasses();
+        var innerClasses = innerClasses();
         if (innerClasses.size() == 0 || isEnumConstant) {
             return StringExpression.EMPTY;
         }
 
-        return Expressions.indent(innerClasses.stream()
+        return Expressions.indent(innerClasses.values().stream()
             .map(JarClass::compileToExpression)
             .toArray(Expression[]::new));
     }
@@ -399,7 +401,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             return StringExpression.EMPTY;
         }
 
-        return Expressions.indent(constructors().stream()
+        return Expressions.indent(constructors().values().stream()
             .map(JarConstructor::compileToExpression)
             .toArray(Expression[]::new));
     }
