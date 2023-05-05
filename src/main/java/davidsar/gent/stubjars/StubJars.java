@@ -101,7 +101,6 @@ public class StubJars {
     }
 
     void createSourceFiles() {
-        System.setSecurityManager(new StubJarsSecurityManager());
         WriterThread writerThread = startWriterThread();
         StringBuilder sourceFiles = new StringBuilder();
 

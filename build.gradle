@@ -1,5 +1,5 @@
 plugins {
-    id "net.ltgt.errorprone" version "3.0.1"
+    id "net.ltgt.errorprone" version "3.1.0"
     id 'java'
     id 'jacoco'
     id 'application'
@@ -11,13 +11,12 @@ checkstyle {
 }
 
 group 'davidsar.gent'
-version '0.3.0'
+version '0.3.1'
 
 
 sourceCompatibility = 1.11
 mainClassName = "davidsar.gent.stubjars.Main"
 repositories {
-    jcenter()
     mavenCentral()
 }
 
@@ -28,17 +27,17 @@ jar {
     from {
         configurations.runtimeClasspath.collect { zipTree(it) }
     }
-    duplicatesStrategy 'exclude'
+    duplicatesStrategy DuplicatesStrategy.EXCLUDE
 }
 
-tasks.withType(AbstractArchiveTask) {
+tasks.withType(AbstractArchiveTask).configureEach {
     preserveFileTimestamps = false
     reproducibleFileOrder = true
 }
 
 dependencies {
-    errorprone 'com.google.errorprone:error_prone_core:2.16'
-    testImplementation group: 'junit', name: 'junit', version: '4.12'
-    implementation 'ch.qos.logback:logback-classic:1.4.5'
-    implementation 'org.jetbrains:annotations:23.0.0'
+    errorprone 'com.google.errorprone:error_prone_core:2.18.0'
+    testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+    implementation 'ch.qos.logback:logback-classic:1.4.6'
+    implementation 'org.jetbrains:annotations:24.0.1'
 }

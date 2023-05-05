@@ -314,6 +314,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             return compileClass(false, null);
         } catch (NoClassDefFoundError ex) {
             try {
+                //noinspection unchecked
                 clazz = (Class<T>) Class.forName(fullName(), false, new URLClassLoader(((URLClassLoader) stubClassLoader).getURLs(), stubClassLoader.getParent()));
                 return compileClass(false, null);
             } catch (ClassNotFoundException | NoClassDefFoundError e) {
@@ -355,8 +356,6 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         return new ClassExpression(methods, enumMembers, fields, innerClasses, Expressions.of(clazzHeader));
     }
 
-
-    @SuppressWarnings("EmptyCatch")
     private Expression compileFields(boolean isEnumConstant) {
         return Expressions.indent(fields().values().stream()
             .filter(field -> !((isEnumConstant || isEnum()) && field.isStatic()) && !field.isSynthetic())
@@ -367,6 +366,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
                             var ignored = superClazz.getDeclaredField(field.name());
                             return false;
                         } catch (NoSuchFieldException ignored) {
+                            // If the field does not exist in the super class, we can safely include it
                         }
                     }
 
