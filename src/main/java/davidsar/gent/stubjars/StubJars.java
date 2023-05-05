@@ -100,7 +100,10 @@ public class StubJars {
         }
     }
 
+    @SuppressWarnings("removal")
     void createSourceFiles() {
+        // We need this step to override the System::exit calls when loading classes fails
+        System.setSecurityManager(new StubJarsSecurityManager());
         WriterThread writerThread = startWriterThread();
         StringBuilder sourceFiles = new StringBuilder();
 
