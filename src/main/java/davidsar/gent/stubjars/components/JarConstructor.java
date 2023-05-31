@@ -226,7 +226,7 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
         }
 
         if (correctType.equals(Void.class)) {
-            return null;
+            return Expressions.fromString("null");
         }
 
         return Expressions.toCast(JarType.toExpression(correctType, clazz, true, type -> {
