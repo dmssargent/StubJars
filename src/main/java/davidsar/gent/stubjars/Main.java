@@ -34,7 +34,7 @@ class Main {
         createDirectoryTree(stubJars);
         boolean sourceFilesCreated = createSourceFiles(stubJars);
         if (!sourceFilesCreated) {
-            log.error("Source file creation was interrupted due to an error");
+            log.error("Source file failed, exiting");
             System.exit(1);
         }
 
@@ -92,9 +92,10 @@ class Main {
     private static boolean createSourceFiles(StubJars build) {
         log.info("Starting creation of stub_src files");
         boolean sourceFilesCreated = build.createSourceFiles();
-        log.info("Creation of stub_src files finished");
-        if (!sourceFilesCreated) {
-            log.error("Source file creation was interrupted due to an error");
+        if (sourceFilesCreated) {
+            log.info("Creation of stub_src files was successful");
+        } else {
+            log.info("Creation of stub_src files failed");
         }
         return sourceFilesCreated;
     }
