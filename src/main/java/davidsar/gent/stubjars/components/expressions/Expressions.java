@@ -162,6 +162,10 @@ public final class Expressions {
 
     private static Expression[] flatten(@NotNull Stream<Expression> expressionStream) {
         return expressionStream.flatMap(expression -> {
+            if (expression == null) {
+                return Stream.empty();
+            }
+
             if (expression.hasChildren()) {
                 return Stream.of(flatten(expression.children()));
             }
