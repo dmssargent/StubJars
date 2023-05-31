@@ -32,7 +32,12 @@ class Main {
         parseArgs(builder, args);
         StubJars stubJars = buildStubJarsInstance(builder);
         createDirectoryTree(stubJars);
-        createSourceFiles(stubJars);
+        boolean sourceFilesCreated = createSourceFiles(stubJars);
+        if (!sourceFilesCreated) {
+            log.error("Source file creation was interrupted due to an error");
+            System.exit(1);
+        }
+
         if (shouldBuild) {
             compileGeneratedCode(stubJars);
         }
@@ -84,10 +89,14 @@ class Main {
         log.info("stub_src directory tree creation finished");
     }
 
-    private static void createSourceFiles(StubJars build) {
+    private static boolean createSourceFiles(StubJars build) {
         log.info("Starting creation of stub_src files");
-        build.createSourceFiles();
+        boolean sourceFilesCreated = build.createSourceFiles();
         log.info("Creation of stub_src files finished");
+        if (!sourceFilesCreated) {
+            log.error("Source file creation was interrupted due to an error");
+        }
+        return sourceFilesCreated;
     }
 
     private static void compileGeneratedCode(StubJars build) {
