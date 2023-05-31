@@ -61,7 +61,7 @@ public class StubJars {
     private static final File BUILD_DIR = new File(SOURCE_DIR, "build");
     private static final File CLASSES_DIR = new File(BUILD_DIR, "classes");
     private static final File SOURCES_LIST_FILE = new File(SOURCE_DIR, "sources.list");
-    private final int numberOfCompilerThreads = 4;
+    private final int numberOfCompilerThreads = Math.min(Runtime.getRuntime().availableProcessors() - 1, 1);
 
 
     private StubJars(@NotNull List<JarClass<?>> clazzes, List<JarFile> classpathJars) {
