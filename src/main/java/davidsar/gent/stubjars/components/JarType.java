@@ -217,14 +217,19 @@ public class JarType {
         protected List<Expression> children;
 
         WildcardBoundedType(Type type, Expression typeExpression, TypeExpression boundingType) {
-            super(type, null);
-            children = Collections.unmodifiableList(Arrays.asList(
+            super(type, Expressions.of(
                 StringExpression.QUESTION_MARK,
                 StringExpression.SPACE,
                 typeExpression,
                 StringExpression.SPACE,
                 boundingType
             ));
+            this.children = Arrays.asList(
+                StringExpression.QUESTION_MARK,
+                StringExpression.SPACE,
+                typeExpression,
+                StringExpression.SPACE,
+                boundingType);
         }
 
         @Override
