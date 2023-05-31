@@ -101,21 +101,27 @@ public class StubJars {
     }
 
     @SuppressWarnings("removal")
-    void createSourceFiles() {
+    boolean createSourceFiles() {
         // We need this step to override the System::exit calls when loading classes fails
         System.setSecurityManager(new StubJarsSecurityManager());
         WriterThread writerThread = startWriterThread();
         StringBuilder sourceFiles = new StringBuilder();
 
         ExecutorService threads = Executors.newFixedThreadPool(numberOfCompilerThreads);
-        submitCompilerJobs(writerThread, sourceFiles, threads);
+        List<CompilerThread> compilerThreads = submitCompilerJobs(writerThread, sourceFiles, threads);
 
         if (!waitForFinish(writerThread, threads)) {
-            return;
+            return false;
+        }
+
+        if (compilerThreads.stream().anyMatch((x) -> x.failed)) {
+            log.error("Failed to compile all classes; look at the logs for more information");
+            return false;
         }
 
         writeSourceFileList(sourceFiles);
         waitForWriterThreadToFinish(writerThread);
+        return true;
     }
 
     @NotNull
@@ -155,8 +161,9 @@ public class StubJars {
         return true;
     }
 
-    private void submitCompilerJobs(WriterThread writerThread, StringBuilder sourceFiles, ExecutorService threads) {
+    private List<CompilerThread> submitCompilerJobs(WriterThread writerThread, StringBuilder sourceFiles, ExecutorService threads) {
         Semaphore lock = new Semaphore(1, true);
+        List<CompilerThread> compilerThreads = new ArrayList<>();
         for (int iThread = 0; iThread < numberOfCompilerThreads; ++iThread) {
             final int segmentSize = clazzes.size() / numberOfCompilerThreads;
             List<JarClass<?>> list = Collections.unmodifiableList(
@@ -165,8 +172,12 @@ public class StubJars {
                     iThread == numberOfCompilerThreads - 1
                         ? clazzes.size() : segmentSize * (iThread + 1))
             );
-            threads.execute(new CompilerThread(list, writerThread, lock, sourceFiles));
+            CompilerThread compilerThread = new CompilerThread(list, writerThread, lock, sourceFiles);
+            compilerThreads.add(compilerThread);
+            threads.execute(compilerThread);
         }
+
+        return Collections.unmodifiableList(compilerThreads);
     }
 
     private void createBuildDir() {
@@ -387,12 +398,14 @@ public class StubJars {
         private final WriterThread writerThread;
         private final Semaphore lock;
         private final StringBuilder sourceFiles;
+        private boolean failed;
 
         public CompilerThread(List<JarClass<?>> list, WriterThread writerThread, Semaphore lock, StringBuilder sourceFiles) {
             this.list = list;
             this.writerThread = writerThread;
             this.lock = lock;
             this.sourceFiles = sourceFiles;
+            this.failed = false;
         }
 
         @Override
@@ -404,17 +417,21 @@ public class StubJars {
                     || e.fullName().equals(Enum.class.getName())) {
                     continue;
                 }
-
-                File file = new File(SOURCE_DIR, e.fullName().replace('.', File.separatorChar) + ".java");
-                JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
-                writer.write();
                 try {
-                    lock.acquire();
-                } catch (InterruptedException e1) {
-                    return;
+                    File file = new File(SOURCE_DIR, e.fullName().replace('.', File.separatorChar) + ".java");
+                    JavaClassWriter writer = new JavaClassWriter(file, e, writerThread);
+                    writer.write();
+                    try {
+                        lock.acquire();
+                    } catch (InterruptedException e1) {
+                        return;
+                    }
+                    sourceFiles.append(file.getAbsolutePath()).append(System.lineSeparator());
+                    lock.release();
+                } catch (Exception ex) {
+                    failed = true;
+                    throw new RuntimeException("Cannot write class " + e.fullName(), ex);
                 }
-                sourceFiles.append(file.getAbsolutePath()).append(System.lineSeparator());
-                lock.release();
             }
         }
     }

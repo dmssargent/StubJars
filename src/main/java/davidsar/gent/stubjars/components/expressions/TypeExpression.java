@@ -17,13 +17,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class TypeExpression extends Expression implements FormattedExpression {
     private final Expression expression;
 
     protected TypeExpression(@NotNull Type type, Expression expression) {
-        this.expression = expression;
+        this.expression = Objects.requireNonNull(expression);
     }
 
     @Override
@@ -33,7 +35,7 @@ public class TypeExpression extends Expression implements FormattedExpression {
 
     @Override
     public List<Expression> children() {
-        return Arrays.asList(expression);
+        return Collections.singletonList(expression);
     }
 
     @Override

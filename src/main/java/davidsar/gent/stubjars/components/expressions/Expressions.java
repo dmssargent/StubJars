@@ -17,6 +17,7 @@ import davidsar.gent.stubjars.components.writer.Constants;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -106,7 +107,12 @@ public final class Expressions {
     }
 
     public static ListExpression makeListFrom(Stream<Expression> expressionStream) {
-        return new ListExpression(expressionStream.toArray(Expression[]::new), ListExpression.DELIMITER_COMMA_SPACE);
+        Expression[] expressions = expressionStream.toArray(Expression[]::new);
+        try {
+            return new ListExpression(expressions, ListExpression.DELIMITER_COMMA_SPACE);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to make list from expression: " + Arrays.toString(expressions), e);
+        }
     }
 
     public static Expression when(boolean condition, Expression expression) {
