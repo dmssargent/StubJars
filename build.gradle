@@ -1,17 +1,18 @@
 plugins {
     id "net.ltgt.errorprone" version "3.1.0"
-    id 'java'
-    id 'jacoco'
     id 'application'
     id 'checkstyle'
+    id 'jacoco'
+    id 'java'
+    id 'maven-publish'
 }
 
 checkstyle {
     toolVersion "8.11"
 }
 
-group 'davidsar.gent'
-version '0.3.2'
+group 'gent.davidsar.stubjars'
+version '0.3.2-SNAPSHOT'
 
 
 sourceCompatibility = 1.11
@@ -40,4 +41,44 @@ dependencies {
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     implementation 'ch.qos.logback:logback-classic:1.4.6'
     implementation 'org.jetbrains:annotations:24.0.1'
+}
+
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'stubjars'
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = 'StubJars'
+                description = 'Transforms compiled Java JAR and AAR into source code stubs for linking'
+                url = 'https://github.com/dmssargent/StubJars'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'dmssargent'
+                        email = 'dmssargent@users.noreply.github.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/dmssargent/StubJars.git'
+                    developerConnection = 'scm:git:git://github.com/dmssargent/StubJars.git'
+                    url = 'https://github.com/dmssargent/StubJars'
+                }
+            }
+        }
+    }
 }
