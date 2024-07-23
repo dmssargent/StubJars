@@ -5,6 +5,7 @@ plugins {
     id 'jacoco'
     id 'java'
     id 'maven-publish'
+    id 'signing'
 }
 
 checkstyle {
@@ -12,13 +13,18 @@ checkstyle {
 }
 
 group 'gent.davidsar.stubjars'
-version '0.3.2-SNAPSHOT'
+version '0.3.3'
 
 
 sourceCompatibility = 1.11
 mainClassName = "davidsar.gent.stubjars.Main"
 repositories {
     mavenCentral()
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
 }
 
 jar {
@@ -81,4 +87,22 @@ publishing {
             }
         }
     }
+
+    repositories {
+        maven {
+            name = 'local'
+            url = layout.buildDirectory.dir("repo")
+        }
+    }
+}
+
+signing {
+    useGpgCmd()
+    sign publishing.publications.mavenJava
+}
+
+tasks.register('zipMavenRepo', Zip) {
+    dependsOn ':publishMavenJavaPublicationToLocalRepository'
+    from fileTree(layout.buildDirectory.dir("repo"))
+    archiveFileName = "repo-${project.version}.zip"
 }
