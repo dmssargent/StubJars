@@ -13,7 +13,7 @@ checkstyle {
 }
 
 group 'gent.davidsar.stubjars'
-version '0.3.3'
+version '0.3.4-SNAPSHOT'
 
 
 sourceCompatibility = 1.11
