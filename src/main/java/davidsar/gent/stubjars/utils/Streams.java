@@ -26,11 +26,12 @@ import java.util.stream.StreamSupport;
 public class Streams {
     /**
      * Builds a {@link Stream} from an {@link Enumeration}.
+     * <p>
+     *  Source: https://stackoverflow.com/questions/33242577/how-do-i-turn-a-java-enumeration-into-a-stream
      *
      * @param e   the {@link Enumeration} to back to {@link Stream}
      * @param <T> type of objects contained in the {@code Enumeration}
      * @return a new {@code Stream } from the elements of the {@code Enumeration}
-     * @implNote from https://stackoverflow.com/questions/33242577/how-do-i-turn-a-java-enumeration-into-a-stream
      */
     @NotNull
     public static <T> Stream<T> makeFor(@NotNull Enumeration<T> e) {
