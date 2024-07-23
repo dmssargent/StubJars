@@ -33,6 +33,7 @@ public final class StringExpression extends Expression implements FormattedExpre
     public static final Expression FINAL = new StringExpression(Constants.FINAL);
     public static final Expression STATIC = new StringExpression(Constants.STATIC);
     public static final Expression ABSTRACT = new StringExpression(Constants.ABSTRACT);
+    public static final Expression DEFAULT = new StringExpression(Constants.DEFAULT);
     public static final Expression VOLATILE = new StringExpression(Constants.VOLATILE);
     public static final Expression TRANSIENT = new StringExpression(Constants.TRANSIENT);
     public static final Expression PACKAGE = new StringExpression(Constants.PACKAGE);

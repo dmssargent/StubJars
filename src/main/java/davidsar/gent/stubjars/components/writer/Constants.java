@@ -41,6 +41,7 @@ public class Constants {
     public static final String FINAL = "final";
     public static final String STATIC = "static";
     public static final String ABSTRACT = "abstract";
+    public static final String DEFAULT = "default";
     public static final String TRANSIENT = "transient";
     public static final String VOLATILE = "volatile";
     public static final String PACKAGE = "package";

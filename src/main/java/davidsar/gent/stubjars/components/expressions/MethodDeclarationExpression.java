@@ -42,6 +42,10 @@ public class MethodDeclarationExpression extends Expression implements Formatted
             signature.add(StringExpression.ABSTRACT);
         }
 
+        if (!method.isAbstract() && method.getParentClazz().isInterface()) {
+            signature.add(StringExpression.DEFAULT);
+        }
+
         // Convert method type parameters
         signature.add(JarType.convertTypeParametersToExpression(method.typeParameters(), method.getParentClazz()));
         // Convert method return type
