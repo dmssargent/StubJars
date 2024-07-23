@@ -72,7 +72,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         String convertedName = convertEntryNameToClassName(entryName);
         //noinspection unchecked
         clazz = (Class<T>) Class.forName(convertedName, false, classLoader);
-        log.info("loading class: " + clazz.getName());
+        log.debug("loading class: {}", clazz.getName());
         stubClassLoader = classLoader;
     }
 
