@@ -119,7 +119,7 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
             return methodDeclaration.asStatement();
         }
 
-        return Expressions.of(methodDeclaration, StringExpression.SPACE, stubMethod);
+        return Expressions.of(methodDeclaration, StringExpression.SPACE, stubMethod, StringExpression.NEW_LINE);
     }
 
     private boolean shouldWriteMethod(boolean isEnumField) {
