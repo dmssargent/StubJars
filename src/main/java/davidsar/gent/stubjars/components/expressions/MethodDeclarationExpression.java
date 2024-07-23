@@ -77,9 +77,6 @@ public class MethodDeclarationExpression extends Expression implements Formatted
             builder.append(child);
             builder.append(Constants.SPACE);
         }
-        if (builder.substring(builder.length() - 1).equals(Constants.SPACE)) {
-            builder.replace(builder.length() - 1, builder.length(), "");
-        }
         return Expressions.fromString(builder.toString().trim());
     }
 }

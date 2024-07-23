@@ -172,7 +172,7 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
         Class<?> clazzSuperClass = clazz.extendsClass();
         Expression stubMethod;// What should the contents of the constructor be?
         if (clazzSuperClass == null || JarConstructor.hasDefaultConstructor(clazzSuperClass)) {
-            return Expressions.emptyBlock();
+            return Expressions.of(Expressions.emptyBlock(), StringExpression.NEW_LINE);
         } else {
             // We need to call some form of the default constructor, so we can compile code
             JarConstructor<?>[] declaredConstructors;
@@ -204,7 +204,7 @@ public class JarConstructor<T> extends JarModifiers implements CompileableExpres
             }
         }
 
-        return stubMethod;
+        return Expressions.of(stubMethod, StringExpression.NEW_LINE);
     }
 
     boolean canRewriteConstructorParams() {
