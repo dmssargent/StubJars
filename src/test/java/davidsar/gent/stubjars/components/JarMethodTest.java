@@ -1,36 +1,38 @@
 package davidsar.gent.stubjars.components;
 
 
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 
-public class JarClassTest {
+public class JarMethodTest {
     @Test
-    public void testInterfaceIsWritten() throws ClassNotFoundException {
-        var testInterfaceClass = new JarClass<TestInterface>(JarClassTest.class.getClassLoader(), TestInterface.class.getName());
-        assertThat(testInterfaceClass.isInterface()).isTrue();
-        assertThat(testInterfaceClass.isEnum()).isFalse();
-        assertThat(testInterfaceClass.isInnerClass()).isFalse();
+    public void testDefaultMethodInInterfaceInterfaceIsWritten() throws ClassNotFoundException, NoSuchMethodException {
+        var testInterfaceClass = new JarClass<TestInterface>(JarMethodTest.class.getClassLoader(), TestInterface.class.getName());
+        var method = new JarMethod(testInterfaceClass, testInterfaceClass.getClazz().getDeclaredMethod("testDefaultMethod"));
+        assertThat(method.isAbstract()).isFalse();
 
-        assertThat(testInterfaceClass.compileToExpression().toString()).isEqualTo("public interface TestInterface  {\n" +
-            "                    default   void testDefaultMethod() {}\n" +
-            "void testMethod();\n" +
-            "    }\n");
+        assertThat(TreeFormatter.toLines(method.compileToExpression())).containsExactly("default   void testDefaultMethod() {", "}");
     }
 
     @Test
-    public void testImplementationIsWritten() throws ClassNotFoundException {
-        var testInterfaceClass = new JarClass<TestImplementation>(JarClassTest.class.getClassLoader(), TestImplementation.class.getName());
-        assertThat(testInterfaceClass.isInterface()).isFalse();
-        assertThat(testInterfaceClass.isEnum()).isFalse();
-        assertThat(testInterfaceClass.isInnerClass()).isFalse();
+    public void testMethodInInterfaceIsWritten() throws ClassNotFoundException, NoSuchMethodException {
+        var testInterfaceClass = new JarClass<TestInterface>(JarMethodTest.class.getClassLoader(), TestInterface.class.getName());
+        var method = new JarMethod(testInterfaceClass, testInterfaceClass.getClazz().getDeclaredMethod("testMethod"));
+        assertThat(method.isAbstract()).isTrue();
 
-        assertThat(testInterfaceClass.compileToExpression().toString()).isEqualTo(
-            "public class TestImplementation  implements TestInterface{\n" +
-            "                public  TestImplementation() {}\n" +
-            "        public    void testMethod() {}\n" +
-                "    }\n");
+        assertThat(TreeFormatter.toLines(method.compileToExpression())).containsExactly("void testMethod();");
+    }
+
+    @Test
+    public void testMethodInImplementationIsWritten() throws ClassNotFoundException, NoSuchMethodException {
+        var testInterfaceClass = new JarClass<TestInterface>(JarMethodTest.class.getClassLoader(), TestImplementation.class.getName());
+        var method = new JarMethod(testInterfaceClass, testInterfaceClass.getClazz().getDeclaredMethod("testMethod"));
+        assertThat(method.isAbstract()).isFalse();
+
+        assertThat(TreeFormatter.toLines(method.compileToExpression())).containsExactly("public    void testMethod() {", "}");
     }
 }
