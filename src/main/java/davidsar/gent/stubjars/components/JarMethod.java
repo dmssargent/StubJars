@@ -115,7 +115,7 @@ public class JarMethod extends JarModifiers implements CompileableExpression {
             );
 
             return Expressions.of(methodDeclaration, StringExpression.SPACE, methodBody);
-        } else if ((isAbstract() && !isEnumField) || (getParentClazz().isInterface() && !isStatic())) {
+        } else if ((isAbstract() && !isEnumField) || (isAbstract() && getParentClazz().isInterface() && !isStatic())) {
             return methodDeclaration.asStatement();
         }
 
