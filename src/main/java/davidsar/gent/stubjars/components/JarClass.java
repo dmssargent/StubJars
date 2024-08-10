@@ -38,9 +38,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,7 +55,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private static Map<String, JarClass<?>> classToJarClassMap;
 
     private Class<T> clazz;
-    private ClassLoader stubClassLoader;
+    private final ClassLoader stubClassLoader;
     private Map<String, JarConstructor> constructors;
     private Map<String, JarMethod> methods;
     private Map<String, JarClass<?>> innerClasses;
@@ -73,11 +73,12 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         //noinspection unchecked
         clazz = (Class<T>) Class.forName(convertedName, false, classLoader);
         log.debug("loading class: {}", clazz.getName());
-        stubClassLoader = classLoader;
+        stubClassLoader = Objects.requireNonNull(classLoader);
     }
 
     private JarClass(@NotNull Class<T> clazz) {
         this.clazz = clazz;
+        this.stubClassLoader = clazz.getClassLoader();
     }
 
     public static void loadJarClassList(@NotNull List<JarClass<?>> list) {
@@ -316,6 +317,8 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         } catch (NoClassDefFoundError ex) {
             try {
                 //noinspection unchecked
+                Objects.requireNonNull(stubClassLoader);
+                Objects.requireNonNull(fullName());
                 clazz = (Class<T>) Class.forName(fullName(), false, new URLClassLoader(((URLClassLoader) stubClassLoader).getURLs(), stubClassLoader.getParent()));
                 return compileClass(false, null);
             } catch (ClassNotFoundException | NoClassDefFoundError e) {
