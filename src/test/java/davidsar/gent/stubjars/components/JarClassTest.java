@@ -1,6 +1,12 @@
 package davidsar.gent.stubjars.components;
 
 
+import davidsar.gent.stubjars.components.expressions.Expression;
+import davidsar.gent.stubjars.components.expressions.Expressions;
+import davidsar.gent.stubjars.components.expressions.PackageStatement;
+import davidsar.gent.stubjars.components.expressions.StringExpression;
+import davidsar.gent.stubjars.components.writer.Constants;
+import davidsar.gent.stubjars.components.writer.JavaClassWriter;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,5 +38,43 @@ public class JarClassTest {
             "                public  TestImplementation() {}\n" +
             "        public    void testMethod() {}\n" +
                 "    }\n");
+    }
+
+    @Test
+    public void fieldDeclarationArrayWorks() throws ClassNotFoundException {
+        var testInterfaceClass = new JarClass<TestConstructorClass>(JarClassTest.class.getClassLoader(), TestConstructorClass.class.getName());
+        assertThat(testInterfaceClass.isInterface()).isFalse();
+        assertThat(testInterfaceClass.isEnum()).isFalse();
+        assertThat(testInterfaceClass.isInnerClass()).isFalse();
+
+        assertThat(testInterfaceClass.compileToExpression().toString()).isEqualTo(
+"public class TestConstructorClass  {\n" +
+    "                public  TestConstructorClass() {}\n" +
+    "                public enum ColorSwatch  {\n" +
+    "    RED{\n" +
+    "                        }\n" +
+    ",\n" +
+    "GREEN{\n" +
+    "                        }\n" +
+    ",\n" +
+    "BLUE{\n" +
+    "                        }\n" +
+    ";\n" +
+    "                    }\n" +
+    "public static class Result  {\n" +
+    "        public final davidsar.gent.stubjars.components.TestConstructorClass.ColorSwatch closestSwatch = davidsar.gent.stubjars.components.TestConstructorClass.ColorSwatch.RED;\n" +
+    "public final int[] rgb = new int[] {};\n" +
+    "        public  Result(davidsar.gent.stubjars.components.TestConstructorClass.ColorSwatch arg0, float[] arg1) {}\n" +
+    "            }\n" +
+    "public static abstract class ResultGetter  {\n" +
+    "                public  ResultGetter() {}\n" +
+    "        public  abstract   davidsar.gent.stubjars.components.TestConstructorClass.Result getAnalysis();\n" +
+    "    }\n" +
+    "}\n");
+        Expression packageStatement = new PackageStatement(testInterfaceClass.packageName());
+        Expression classBody = testInterfaceClass.compileToExpression();
+        Expression fullClass = Expressions.of(packageStatement, StringExpression.NEW_LINE, classBody);
+        var result = String.join(Constants.NEW_LINE_CHARACTER, TreeFormatter.toLines(fullClass));
+        assertThat(result).isNotEmpty();
     }
 }

@@ -26,6 +26,7 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,8 +54,8 @@ public class JarFile {
     }
 
     @NotNull
-    static ClassLoader createClassLoaderFromJars(@Nullable ClassLoader parentClassLoader, JarFile... jarFiles) {
-        URL[] urls = Arrays.stream(jarFiles).map(JarFile::getUrl).toArray(URL[]::new);
+    static ClassLoader createClassLoaderFromJars(@Nullable ClassLoader parentClassLoader, String... jarFiles) {
+        URL[] urls = Arrays.stream(jarFiles).map(File::new).map(JarFile::forFile).map(JarFile::getUrl).toArray(URL[]::new);
         ClassLoader classLoader = parentClassLoader == null ? JarFile.class.getClassLoader() : parentClassLoader;
         return new URLClassLoader(urls, classLoader);
     }
@@ -69,23 +70,24 @@ public class JarFile {
     }
 
     Set<JarClass<?>> getClasses(ClassLoader loader) throws IOException {
-        java.util.jar.JarFile iJar = new java.util.jar.JarFile(jar);
-        return Streams.makeFor(iJar.entries())
-                .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
-                .map(entry -> {
-                    try {
-                        return new JarClass<>(loader, entry.getName());
-                    } catch (ClassNotFoundException e) {
-                        log.error("unable to load class: not found: ignored: " + entry.getName());
-                        return null;
-                    } catch (LinkageError e) {
-                        log.error("unable to load class: linkage error: ignored: " + entry.getName());
-                        return null;
-                    }
-                })
-                .filter(clazz -> clazz != null)
-                .flatMap(clazz -> Stream.concat(Stream.of(clazz), findInnerClasses(clazz)))
-                .collect(Collectors.toSet());
+        try (java.util.jar.JarFile iJar = new java.util.jar.JarFile(jar)) {
+            return Streams.makeFor(iJar.entries())
+                    .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
+                    .map(entry -> {
+                        try {
+                            return new JarClass<>(loader, entry.getName());
+                        } catch (ClassNotFoundException e) {
+                            log.error("unable to load class: not found: ignored: " + entry.getName());
+                            return null;
+                        } catch (LinkageError e) {
+                            log.error("unable to load class: linkage error: ignored: " + entry.getName());
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .flatMap(clazz -> Stream.concat(Stream.of(clazz), findInnerClasses(clazz)))
+                    .collect(Collectors.toSet());
+        }
     }
 
     @NotNull

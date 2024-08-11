@@ -27,6 +27,8 @@ import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
@@ -61,7 +63,7 @@ public class StubJars {
     private static final File BUILD_DIR = new File(SOURCE_DIR, "build");
     private static final File CLASSES_DIR = new File(BUILD_DIR, "classes");
     private static final File SOURCES_LIST_FILE = new File(SOURCE_DIR, "sources.list");
-    private final int numberOfCompilerThreads = Math.min(Runtime.getRuntime().availableProcessors() - 1, 1);
+    private final int numberOfCompilerThreads = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
 
 
     private StubJars(@NotNull List<JarClass<?>> clazzes, List<JarFile> classpathJars) {
@@ -287,12 +289,12 @@ public class StubJars {
      * Creates new {@link StubJars} instances.
      */
     static class Builder {
-        private final List<JarFile> jars;
-        private final List<JarFile> classpathJars;
+        private final Set<String> jars;
+        private final Set<String> classpathJars;
 
         private Builder() {
-            jars = new ArrayList<>();
-            classpathJars = new ArrayList<>();
+            jars = new LinkedHashSet<>();
+            classpathJars = new LinkedHashSet<>();
         }
 
         /**
@@ -301,8 +303,9 @@ public class StubJars {
          * @param jar a {@link File} representing a JAR file
          */
         void addJar(@NotNull File jar) {
-            log.info("adding jar: " + jar.getAbsolutePath());
-            jars.add(JarFile.forFile(jar));
+            if (jars.add(jar.getPath())) {
+                log.info("adding jar: {}", jar.getAbsolutePath());
+            }
         }
 
         /**
@@ -314,8 +317,9 @@ public class StubJars {
             if (!jar.exists()) {
                 throw new IOException("A provided classpath JAR doesn't exist. File: " + jar.getAbsolutePath());
             }
-            log.info("adding classPathJar: " + jar.getAbsolutePath());
-            classpathJars.add(JarFile.forFile(jar));
+            if (classpathJars.add(jar.getPath())) {
+                log.info("adding classPathJar: {}", jar.getAbsolutePath());
+            }
         }
 
         /**
@@ -373,11 +377,12 @@ public class StubJars {
          * @return a new {@link StubJars} instance
          */
         @NotNull StubJars build() {
-            ClassLoader cpClassLoader = JarFile.createClassLoaderFromJars(null, classpathJars.toArray(new JarFile[0]));
-            ClassLoader classLoader = JarFile.createClassLoaderFromJars(cpClassLoader, jars.toArray(new JarFile[0]));
+            ClassLoader cpClassLoader = JarFile.createClassLoaderFromJars(null, classpathJars.toArray(new String[0]));
+            ClassLoader classLoader = JarFile.createClassLoaderFromJars(cpClassLoader, jars.toArray(new String[0]));
             List<JarClass<?>> clazzes = Collections.synchronizedList(new ArrayList<>());
-            for (JarFile jar : jars) {
-                log.info("loading jar: " + jar.getJar().getAbsolutePath());
+            for (String jarPath : jars) {
+                JarFile jar = JarFile.forFile(new File(jarPath));
+                log.info("loading jar: {}", jar.getJar().getAbsolutePath());
                 final Set<JarClass<?>> classes;
                 try {
                     classes = jar.getClasses(classLoader);
@@ -389,7 +394,7 @@ public class StubJars {
             }
 
             JarClass.loadJarClassList(clazzes);
-            return new StubJars(clazzes, classpathJars);
+            return new StubJars(clazzes, classpathJars.stream().map(File::new).map(JarFile::forFile).collect(Collectors.toList()));
         }
     }
 

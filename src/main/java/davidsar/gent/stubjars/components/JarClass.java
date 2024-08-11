@@ -55,6 +55,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     private static Map<String, JarClass<?>> classToJarClassMap;
 
     private Class<T> clazz;
+
     private final ClassLoader stubClassLoader;
     private Map<String, JarConstructor> constructors;
     private Map<String, JarMethod> methods;
@@ -76,9 +77,9 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         stubClassLoader = Objects.requireNonNull(classLoader);
     }
 
-    private JarClass(@NotNull Class<T> clazz) {
+    private JarClass(@NotNull Class<T> clazz, ClassLoader classLoader) {
         this.clazz = clazz;
-        this.stubClassLoader = clazz.getClassLoader();
+        this.stubClassLoader = classLoader;
     }
 
     public static void loadJarClassList(@NotNull List<JarClass<?>> list) {
@@ -93,12 +94,12 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     }
 
     @NotNull
-    static <T> JarClass<?> forClass(@NotNull Class<T> clazz) {
+    static <T> JarClass<?> forClass(@NotNull Class<T> clazz, ClassLoader parentClassLoader) {
         if (classToJarClassMap != null && classToJarClassMap.containsKey(clazz.getName())) {
             return classToJarClassMap.get(clazz.getName());
         }
 
-        return new JarClass<>(clazz);
+        return new JarClass<>(clazz, Objects.requireNonNull(parentClassLoader));
     }
 
     @NotNull
@@ -217,7 +218,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             innerClasses = Arrays.stream(clazz.getDeclaredClasses())
                 .filter(clazz -> !clazz.isLocalClass())
                 .filter(clazz -> !clazz.isAnonymousClass())
-                .map(JarClass::forClass).collect(Collectors.toMap(x -> x.clazz.getName(), Function.identity(), (x, y) -> y, TreeMap::new));
+                .map((Class<?> clazz1) -> forClass(clazz1, stubClassLoader)).collect(Collectors.toMap(x -> x.clazz.getName(), Function.identity(), (x, y) -> y, TreeMap::new));
         }
 
         return innerClasses;
@@ -247,7 +248,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
     }
 
     @NotNull Map<String, JarClass> allSuperClassesAndInterfaces() {
-        return allSuperClassesAndInterfaces(clazz).stream().map(JarClass::forClass).collect(Collectors.toMap(x -> x.clazz.getName(), Function.identity(), (x, y) -> y, TreeMap::new));
+        return allSuperClassesAndInterfaces(clazz).stream().map((Class<?> clazz1) -> forClass(clazz1, stubClassLoader)).collect(Collectors.toMap(x -> x.clazz.getName(), Function.identity(), (x, y) -> y, TreeMap::new));
     }
 
     @NotNull
@@ -315,16 +316,19 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
         try {
             return compileClass(false, null);
         } catch (NoClassDefFoundError ex) {
-            try {
-                //noinspection unchecked
-                Objects.requireNonNull(stubClassLoader);
-                Objects.requireNonNull(fullName());
-                clazz = (Class<T>) Class.forName(fullName(), false, new URLClassLoader(((URLClassLoader) stubClassLoader).getURLs(), stubClassLoader.getParent()));
-                return compileClass(false, null);
-            } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                log.warn("Missing class definition for {}", fullName(), e);
-                return StringExpression.EMPTY;
-            }
+            log.warn("Missing class definition for {}. ClassLoader was: {}", fullName(), ((URLClassLoader) stubClassLoader).getURLs());
+            log.warn("Error was: ", ex);
+            return StringExpression.EMPTY;
+//            try {
+//                //noinspection unchecked
+//                Objects.requireNonNull(stubClassLoader);
+//                Objects.requireNonNull(fullName());
+//                clazz = (Class<T>) Class.forName(fullName(), false, new URLClassLoader(((URLClassLoader) stubClassLoader).getURLs(), stubClassLoader.getParent()));
+//                return compileClass(false, null);
+//            } catch (ClassNotFoundException | NoClassDefFoundError e) {
+//                log.warn("Missing class definition for {}", fullName(), e);
+//                return StringExpression.EMPTY;
+//            }
         }
     }
 
@@ -353,7 +357,7 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
         if (invokedExpression != null) {
             enumMembers = new EnumMembers(Arrays.stream(invokedExpression)
-                    .map(member -> JarClass.forClass(member.getClass()).compileClass(true, member.name()))
+                    .map(member -> JarClass.forClass(member.getClass(), getClassLoader()).compileClass(true, member.name()))
                 .toArray(Expression[]::new)).asStatement();
         }
 
@@ -511,6 +515,10 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
 
             return null;
         }
+    }
+
+    public ClassLoader getClassLoader() {
+        return stubClassLoader;
     }
 
     private static class ClassExpression extends Expression {
