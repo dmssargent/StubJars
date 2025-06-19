@@ -114,6 +114,10 @@ class Value {
                 return Expressions.fromString("null");
             }
 
+            if (enumConstants.length == 0) {
+                return Expressions.fromString("null");
+            }
+
             return Expressions.of(
                 JarType.toExpression(type, against),
                 StringExpression.PERIOD,
