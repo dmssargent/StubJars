@@ -319,16 +319,6 @@ public class JarClass<T> extends JarModifiers implements CompileableExpression {
             log.warn("Missing class definition for {}. ClassLoader was: {}", fullName(), ((URLClassLoader) stubClassLoader).getURLs());
             log.warn("Error was: ", ex);
             return StringExpression.EMPTY;
-//            try {
-//                //noinspection unchecked
-//                Objects.requireNonNull(stubClassLoader);
-//                Objects.requireNonNull(fullName());
-//                clazz = (Class<T>) Class.forName(fullName(), false, new URLClassLoader(((URLClassLoader) stubClassLoader).getURLs(), stubClassLoader.getParent()));
-//                return compileClass(false, null);
-//            } catch (ClassNotFoundException | NoClassDefFoundError e) {
-//                log.warn("Missing class definition for {}", fullName(), e);
-//                return StringExpression.EMPTY;
-//            }
         }
     }
 
