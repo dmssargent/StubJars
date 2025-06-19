@@ -61,10 +61,18 @@ public class JarClassTest {
     "                        }\n" +
     ";\n" +
     "                    }\n" +
+    "public enum EmptyEnum  {\n" +
+    "    ;\n" +
+    "                    }\n" +
     "public static class Result  {\n" +
     "        public final davidsar.gent.stubjars.components.TestConstructorClass.ColorSwatch closestSwatch = davidsar.gent.stubjars.components.TestConstructorClass.ColorSwatch.RED;\n" +
     "public final int[] rgb = new int[] {};\n" +
     "        public  Result(davidsar.gent.stubjars.components.TestConstructorClass.ColorSwatch arg0, float[] arg1) {}\n" +
+    "            }\n" +
+    "public static class ResultEmptyEnum  {\n" +
+    "        public final davidsar.gent.stubjars.components.TestConstructorClass.EmptyEnum closestSwatch = null;\n" +
+    "public final int[] rgb = new int[] {};\n" +
+    "        public  ResultEmptyEnum(davidsar.gent.stubjars.components.TestConstructorClass.EmptyEnum arg0, float[] arg1) {}\n" +
     "            }\n" +
     "public static abstract class ResultGetter  {\n" +
     "                public  ResultGetter() {}\n" +
